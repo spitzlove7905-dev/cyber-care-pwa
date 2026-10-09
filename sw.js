@@ -1,4 +1,4 @@
-const CACHE = 'cyber-care-v3';
+const CACHE = 'cyber-care-v4';
 const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js'];
 
 self.addEventListener('install', event =>
