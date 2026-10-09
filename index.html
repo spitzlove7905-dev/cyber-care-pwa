@@ -51,3 +51,4 @@ const destinations={jp:[['警察庁 サイバー事案に関する通報等','ht
 function renderHelp(){let list=destinations[$('#country').value||'jp'];$('#helpLinks').innerHTML=list.map(x=>`<a href="${x[1]}" target="_blank" rel="noopener noreferrer">${x[0]}</a>`).join('')}$('#openHelp').onclick=()=>{$('#help').showModal();renderHelp()};$('#country').onchange=renderHelp;
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');render();
 </script></body></html>
+<script src="enhancements.js"></script>
