@@ -95,4 +95,20 @@
     win.focus(); win.print();
   }
   $('#pdfLog').onclick = printableEvidence;
+
+  $('#clearData').onclick = async () => {
+    const japanese = document.documentElement.lang === 'ja';
+    if (!confirm(japanese ? 'この端末に保存した記録と画像をすべて消去しますか？' : 'Erase all notes and images saved on this device?')) return;
+    const database = await db;
+    await new Promise((resolve, reject) => {
+      const tx = database.transaction('images', 'readwrite');
+      tx.objectStore('images').clear();
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    localStorage.removeItem('cc-records');
+    await renderRecordsWithImages();
+    toast(japanese ? 'この端末の記録と画像を消去しました' : 'Notes and images on this device were erased');
+  };
 })();
+

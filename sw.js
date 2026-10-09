@@ -1,5 +1,5 @@
-const CACHE = 'cyber-care-v2';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './enhancements.js'];
+const CACHE = 'cyber-care-v3';
+const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js'];
 
 self.addEventListener('install', event =>
   event.waitUntil(
@@ -10,7 +10,11 @@ self.addEventListener('install', event =>
 );
 
 self.addEventListener('activate', event =>
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  )
 );
 
 self.addEventListener('fetch', event => {
@@ -18,3 +22,4 @@ self.addEventListener('fetch', event => {
     event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request)));
   }
 });
+
