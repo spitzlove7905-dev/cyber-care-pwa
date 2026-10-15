@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>通信状況を確認 | Cyber Care</title>
+  <style>
+    :root{--ink:#19213b;--muted:#58627f;--brand:#4355a7;--line:#dce2f2;--paper:#fff;--mint:#e8f7f2}*{box-sizing:border-box}body{margin:0;background:#f6f8fe;color:var(--ink);font-family:ui-rounded,"Hiragino Sans",Meiryo,system-ui,sans-serif;line-height:1.65}.page{max-width:900px;margin:auto;padding:32px 20px 60px}.back{color:var(--brand);font-weight:750;text-decoration:none}.hero{margin-top:18px;padding:32px;border-radius:24px;background:linear-gradient(125deg,#4355a7,#697bd1);color:#fff}.badge{display:inline-block;border-radius:99px;padding:5px 10px;background:#e8f7f2;color:#174d43;font-weight:800;font-size:.86rem}.card{margin-top:18px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--paper)}h1{font-size:clamp(2rem,5vw,3rem);line-height:1.2;margin:14px 0}h2{font-size:1.25rem}.muted{color:var(--muted)}ul{padding-left:1.3rem}.notice{background:var(--mint);border-radius:14px;padding:16px;color:#174d43}.steps{display:grid;gap:12px}.step{border:1px solid var(--line);border-radius:14px;padding:14px}.step strong{display:block}.foot{margin-top:24px;color:var(--muted);font-size:.9rem}
+  </style>
+</head>
+<body><main class="page">
+  <a class="back" href="index.html">← Cyber Care に戻る</a>
+  <section class="hero"><span class="badge">監視のみ・端末内のみ</span><h1>通信状況を、落ち着いて確認する。</h1><p>初期版はWindows端末上で動作し、接続の概要をローカル画面に表示します。このWebページへ通信記録は送信されません。</p></section>
+  <section class="card"><h2>表示するもの</h2><ul><li>TCP接続の状態</li><li>プロセス名とPID</li><li>ローカル側・接続先のIPアドレスとポート</li><li>接続先がプライベート／公開ネットワークかの区分</li></ul><h2>表示しないもの</h2><ul><li>通信本文、閲覧内容、入力内容、パスワード、ワンタイムコード</li><li>ファイルの中身、キーボード入力、ブラウザ履歴、コマンドライン引数</li></ul></section>
+  <section class="card"><h2>使い方</h2><div class="steps"><div class="step"><strong>1. ローカルプログラムを起動</strong><span class="muted">Cyber Care Monitor を起動します。管理者権限、常駐化、インストールは初期版では不要です。</span></div><div class="step"><strong>2. 表示された一時URLを開く</strong><span class="muted">URLは `127.0.0.1` のみを使います。端末外からは閲覧できません。</span></div><div class="step"><strong>3. 一覧を確認して終了</strong><span class="muted">必要なときだけ更新し、終えたらプログラムを終了します。自動遮断やファイアウォール変更は行いません。</span></div></div></section>
+  <section class="card notice"><strong>注意</strong><br>「公開」と表示される接続だけで危険とは限りません。不安な接続を見つけても、この版はブロックしません。まずプロセス名と正規の提供元を確認し、緊急時は公式窓口へ相談してください。</section>
+  <p class="foot">この画面は機能とプライバシー範囲を説明するためのものです。実際の接続一覧は、Windows端末のローカル画面でのみ表示します。</p>
+</main></body></html>
