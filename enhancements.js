@@ -158,13 +158,11 @@
   const checklistKey = 'cc-action-checklist-v1';
   const checklistItems = {
     ja: [
-      ['official', '安全な公式の入口を開く', '不審なリンクや連絡先は使わず、公式アプリか保存済みのブックマークから確認します。'],
       ['account', '大切なアカウントを守る', 'まずメールのパスワードを見直し、可能なら二段階認証を有効にします。'],
       ['record', '見たことを記録する', '日時、相手、画面、金額など、見聞きした事実だけを残します。'],
       ['consult', '必要なら相談する', '電話用ガイドや相談文を使い、公式の窓口へ相談します。']
     ],
     en: [
-      ['official', 'Use an official starting point', 'Avoid suspicious links and contact details. Use an official app or a saved bookmark.'],
       ['account', 'Protect important accounts', 'Start with your email password and enable two-factor authentication where possible.'],
       ['record', 'Record what you saw', 'Keep only the facts: dates, people, screens, and amounts.'],
       ['consult', 'Ask for help if needed', 'Use the phone guide or draft, then contact an official support channel.']
@@ -180,9 +178,12 @@
     const complete = items.filter(([key]) => state[key]).length;
     const title = language === 'en' ? 'Your next-step checklist' : '最初にすることチェックリスト';
     const note = language === 'en' ? 'Take one step at a time. Your progress stays in this browser on this device.' : '上からひとつずつ進めましょう。完了した項目は、この端末のブラウザに残ります。';
+    const caution = language === 'en'
+      ? '<strong>A note about unexpected messages</strong><span>Do not use links or contact details in an unexpected email or text. If you need to check whether it is real, open the service from its official app or your own saved bookmark.</span>'
+      : '<strong>突然届いたメール・SMSへの注意</strong><span>届いた連絡のリンクや連絡先は使わないでください。本当か確かめる必要があるときは、公式アプリや自分で保存したブックマークからサービスを開きます。</span>';
     const progress = language === 'en' ? `${complete} of ${items.length} complete` : `${items.length}項目中 ${complete}項目を完了`;
     const reset = language === 'en' ? 'Reset this checklist' : 'チェックを最初からやり直す';
-    checklistCard.innerHTML = `<h2>${title}</h2><p class="sub">${note}</p><p class="hint" id="checklistProgress" aria-live="polite">${progress}</p><div class="steps" id="actionChecklist"></div><div class="actions" style="justify-content:flex-start"><button class="ghost" type="button" id="resetChecklist">${reset}</button></div>`;
+    checklistCard.innerHTML = `<h2>${title}</h2><p class="sub">${note}</p><div class="notice" role="note"><span aria-hidden="true">⚠️</span><div>${caution}</div></div><p class="hint" id="checklistProgress" aria-live="polite">${progress}</p><div class="steps" id="actionChecklist"></div><div class="actions" style="justify-content:flex-start"><button class="ghost" type="button" id="resetChecklist">${reset}</button></div>`;
     const container = $('#actionChecklist');
     items.forEach(([key, heading, detail], index) => {
       const item = document.createElement('label');
