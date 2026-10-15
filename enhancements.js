@@ -110,5 +110,91 @@
     await renderRecordsWithImages();
     toast(japanese ? 'この端末の記録と画像を消去しました' : 'Notes and images on this device were erased');
   };
+  // Replace the plain consultation text with a calm, local-only speaking guide.
+  const statementTargetField = $('#statementTarget').closest('.field');
+  const modeField = document.createElement('div');
+  modeField.className = 'field';
+  modeField.innerHTML = `<label for="statementMode" id="statementModeLabel">伝え方を選ぶ</label><select id="statementMode"><option value="phone">電話で伝える</option><option value="written">フォーム・メールで送る</option></select><p class="sub" id="statementModeHint" style="font-size:.9rem;margin-top:8px"></p>`;
+  statementTargetField.after(modeField);
+
+  const consultationRecords = () => JSON.parse(localStorage.getItem('cc-records') || '[]');
+  const consultationLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
+  const consultationFacts = language => {
+    const records = consultationRecords();
+    if (!records.length) return language === 'ja' ? '（まだ記録がありません。「証拠・出来事を記録」から、いつ・何が起きたかを先にメモしてください。）' : '(No saved notes yet. First use “Record evidence & events” to note when and what happened.)';
+    return records.map((record, index) => `${index + 1}. ${record.when || record.saved}\n   ${record.event}`).join('\n');
+  };
+  const consultationText = () => {
+    const language = consultationLanguage();
+    const target = $('#statementTarget').value;
+    const phone = $('#statementMode').value === 'phone';
+    const facts = consultationFacts(language);
+    if (language === 'en') {
+      if (phone) return `Phone consultation guide\n\nStart with:\n“Hello. I would like advice about a possible cyber incident or unauthorized use. I have written down the facts so I can explain them clearly.”\n\nShare the facts in this order:\n${facts}\n\nThen say:\n“I would appreciate guidance on the next steps, how to preserve evidence, and whether there is anything I should do immediately.”\n\nHelpful tip: answer only what you know. If you are unsure, say “I do not know yet.”\n\nThis is a preparation guide, not an official report.`;
+      return `Consultation request draft\n\nI would like advice about a possible cyber incident or unauthorized use.\n\nFacts I can confirm:\n${facts}\n\nWhat I need help with:\nPlease advise on the next steps, evidence preservation, and any immediate protective action.\n\nAnything I cannot confirm is unknown at this time. This is a preparation draft, not an official report.`;
+    }
+    const destination = target === 'company' ? 'サービス会社・金融機関' : '警察・公的相談窓口';
+    if (phone) return `電話での伝え方（${destination}への相談準備）\n\n最初に：\n「サイバー上の件で相談があります。確認できている事実を時系列でメモしていますので、相談してもよろしいでしょうか。」\n\n事実は、次の順で短く伝えます：\n${facts}\n\n最後に：\n「今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。」\n\n伝えるコツ：\n・見たこと、届いたこと、したことだけを伝える\n・わからない点は「現時点では不明です」と伝える\n・担当者の質問に沿って、メモを見ながら答える\n\nこれは相談準備用のガイドであり、正式な被害届や公的機関の様式ではありません。`;
+    return `${destination}への相談文（下書き）\n\nサイバー上のトラブルまたは不正利用の可能性について相談します。\n\n【確認できている事実】\n${facts}\n\n【相談したいこと】\n今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。\n\n不明な点は現時点では不明です。これは相談準備用の下書きであり、正式な被害届や公的機関の様式ではありません。`;
+  };
+  const refreshConsultation = () => { $('#statementText').value = consultationText(); };
+  const localizeConsultation = () => {
+    const english = consultationLanguage() === 'en';
+    $('#statementModeLabel').textContent = english ? 'How would you like to use this?' : '伝え方を選ぶ';
+    $('#statementMode').options[0].text = english ? 'Speak by phone' : '電話で伝える';
+    $('#statementMode').options[1].text = english ? 'Send by form or email' : 'フォーム・メールで送る';
+    $('#statementModeHint').textContent = english ? 'A short guide will put facts first and make it easier to answer questions.' : '事実を先に、短く伝えられるように整えます。';
+    const description = $('#openStatement').querySelector('p');
+    if (description) description.textContent = english ? 'Create a clear phone guide or written draft from your notes.' : '記録から、電話や相談フォームで伝える順番を整えます。';
+  };
+  $('#openStatement').onclick = () => { localizeConsultation(); refreshConsultation(); $('#statement').showModal(); };
+  $('#statementTarget').onchange = refreshConsultation;
+  $('#statementMode').onchange = refreshConsultation;
+  new MutationObserver(localizeConsultation).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  localizeConsultation();
+
+  // Turn the introductory advice into a persistent, one-step-at-a-time checklist.
+  const checklistCard = document.querySelector('.grid > article.card');
+  const checklistKey = 'cc-action-checklist-v1';
+  const checklistItems = {
+    ja: [
+      ['official', '安全な公式の入口を開く', '不審なリンクや連絡先は使わず、公式アプリか保存済みのブックマークから確認します。'],
+      ['account', '大切なアカウントを守る', 'まずメールのパスワードを見直し、可能なら二段階認証を有効にします。'],
+      ['record', '見たことを記録する', '日時、相手、画面、金額など、見聞きした事実だけを残します。'],
+      ['consult', '必要なら相談する', '電話用ガイドや相談文を使い、公式の窓口へ相談します。']
+    ],
+    en: [
+      ['official', 'Use an official starting point', 'Avoid suspicious links and contact details. Use an official app or a saved bookmark.'],
+      ['account', 'Protect important accounts', 'Start with your email password and enable two-factor authentication where possible.'],
+      ['record', 'Record what you saw', 'Keep only the facts: dates, people, screens, and amounts.'],
+      ['consult', 'Ask for help if needed', 'Use the phone guide or draft, then contact an official support channel.']
+    ]
+  };
+  const loadChecklist = () => { try { return JSON.parse(localStorage.getItem(checklistKey) || '{}'); } catch { return {}; } };
+  const saveChecklist = state => localStorage.setItem(checklistKey, JSON.stringify(state));
+  const checklistLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
+  function renderChecklist() {
+    const language = checklistLanguage();
+    const items = checklistItems[language];
+    const state = loadChecklist();
+    const complete = items.filter(([key]) => state[key]).length;
+    const title = language === 'en' ? 'Your next-step checklist' : '最初にすることチェックリスト';
+    const note = language === 'en' ? 'Take one step at a time. Your progress stays in this browser on this device.' : '上からひとつずつ進めましょう。完了した項目は、この端末のブラウザに残ります。';
+    const progress = language === 'en' ? `${complete} of ${items.length} complete` : `${items.length}項目中 ${complete}項目を完了`;
+    const reset = language === 'en' ? 'Reset this checklist' : 'チェックを最初からやり直す';
+    checklistCard.innerHTML = `<h2>${title}</h2><p class="sub">${note}</p><p class="hint" id="checklistProgress" aria-live="polite">${progress}</p><div class="steps" id="actionChecklist"></div><div class="actions" style="justify-content:flex-start"><button class="ghost" type="button" id="resetChecklist">${reset}</button></div>`;
+    const container = $('#actionChecklist');
+    items.forEach(([key, heading, detail], index) => {
+      const item = document.createElement('label');
+      item.className = 'step';
+      item.style.cursor = 'pointer';
+      item.innerHTML = `<input type="checkbox" data-check="${key}" ${state[key] ? 'checked' : ''} style="margin-top:5px;flex:0 0 20px"><span class="n">${index + 1}</span><span><h3>${heading}</h3><p>${detail}</p></span>`;
+      item.querySelector('input').addEventListener('change', event => { const next = loadChecklist(); next[key] = event.target.checked; saveChecklist(next); renderChecklist(); });
+      container.append(item);
+    });
+    $('#resetChecklist').onclick = () => { localStorage.removeItem(checklistKey); renderChecklist(); };
+  }
+  renderChecklist();
+  new MutationObserver(renderChecklist).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
 })();
 
