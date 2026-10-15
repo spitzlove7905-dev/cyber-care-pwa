@@ -19,7 +19,7 @@
       ],
       back: '戻る', next: '次へ', preview: '下書きを確認', required: '「何が起きたか」を入力してください。',
       resultTitle: '相談・提出準備メモ（下書き）', resultNote: '内容を確認してからコピー、保存、または印刷してください。これは公的機関の正式様式ではありません。',
-      copy: 'コピー', download: 'テキスト保存', print: '印刷 / PDF保存', startAgain: '最初からやり直す', copied: 'コピーしました', unknown: '不明', facts: '確認できている事実（5W1H）', actions: '対応したこと・相談したいこと', disclaimer: 'この文書は相談・提出の準備用メモです。犯罪や被害の事実を断定するものではありません。'
+      copy: 'コピー', download: 'テキスト保存', print: '印刷 / PDF保存', nextHelp: 'ステップ4：国・地域の相談先を確認する', startAgain: '最初からやり直す', copied: 'コピーしました', unknown: '不明', facts: '確認できている事実（5W1H）', actions: '対応したこと・相談したいこと', disclaimer: 'この文書は相談・提出の準備用メモです。犯罪や被害の事実を断定するものではありません。'
     },
     en: {
       title: 'Consultation preparation note', note: 'We will organize the facts step by step. You may leave an unknown item as “Unknown.”',
@@ -34,7 +34,7 @@
       ],
       back: 'Back', next: 'Next', preview: 'Review draft', required: 'Please describe what happened.',
       resultTitle: 'Consultation preparation note (draft)', resultNote: 'Review the content before copying, saving, or printing. This is not an official public-authority form.',
-      copy: 'Copy', download: 'Save text', print: 'Print / save PDF', startAgain: 'Start again', copied: 'Copied', unknown: 'Unknown', facts: 'Confirmed facts (5W1H)', actions: 'Actions taken and help requested', disclaimer: 'This document is a preparation note for consultation or submission. It does not determine that a crime or loss has occurred.'
+      copy: 'Copy', download: 'Save text', print: 'Print / save PDF', nextHelp: 'Step 4: Find country & regional help', startAgain: 'Start again', copied: 'Copied', unknown: 'Unknown', facts: 'Confirmed facts (5W1H)', actions: 'Actions taken and help requested', disclaimer: 'This document is a preparation note for consultation or submission. It does not determine that a crime or loss has occurred.'
     }
   };
 
@@ -73,7 +73,7 @@
     $('#briefBar').style.width = '100%';
     $('#briefStep').innerHTML = `<div class="field"><h3>${safe(text.resultTitle)}</h3><p class="sub">${safe(text.resultNote)}</p><textarea id="briefResult" aria-label="Consultation preparation note"></textarea></div>`;
     $('#briefResult').value = report();
-    $('#briefActions').innerHTML = `<button class="ghost" type="button" id="briefCopy">${safe(text.copy)}</button><button class="ghost" type="button" id="briefDownload">${safe(text.download)}</button><button class="ghost" type="button" id="briefPrint">${safe(text.print)}</button><button class="secondary" type="button" id="briefRestart">${safe(text.startAgain)}</button>`;
+    $('#briefActions').innerHTML = `<button class="ghost" type="button" id="briefCopy">${safe(text.copy)}</button><button class="ghost" type="button" id="briefDownload">${safe(text.download)}</button><button class="ghost" type="button" id="briefPrint">${safe(text.print)}</button><button class="secondary" type="button" id="briefHelp">${safe(text.nextHelp)}</button><button class="secondary" type="button" id="briefRestart">${safe(text.startAgain)}</button>`;
     $('#briefCopy').onclick = async () => { await navigator.clipboard.writeText($('#briefResult').value); alert(text.copied); };
     $('#briefDownload').onclick = () => {
       const blob = new Blob([$('#briefResult').value], { type: 'text/plain;charset=utf-8' });
@@ -85,6 +85,7 @@
       win.document.write(`<!doctype html><meta charset="utf-8"><title>${safe(text.resultTitle)}</title><style>body{font-family:system-ui,"Hiragino Sans",Meiryo,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.7;color:#19213b;white-space:pre-wrap}</style><body>${safe($('#briefResult').value)}</body>`);
       win.document.close(); win.focus(); win.print();
     };
+    $('#briefHelp').onclick = () => { dialog.close(); $('#openHelp').click(); };
     $('#briefRestart').onclick = () => { step = 0; Object.keys(values).forEach(key => delete values[key]); $('#briefActions').innerHTML = `<button class="ghost" type="button" id="briefBack">${safe(text.back)}</button><button class="secondary" type="button" id="briefNext">${safe(text.next)}</button>`; bindNavigation(); renderStep(); };
   }
 

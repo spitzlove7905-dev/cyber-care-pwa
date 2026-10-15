@@ -148,6 +148,8 @@
     if (description) description.textContent = english ? 'Create a clear phone guide or written draft from your notes.' : '記録から、電話や相談フォームで伝える順番を整えます。';
   };
   $('#openStatement').onclick = () => { localizeConsultation(); refreshConsultation(); $('#statement').showModal(); };
+  $('#nextFromLog').onclick = () => { $('#log').close(); $('#openStatement').click(); };
+  $('#nextFromStatement').onclick = () => { $('#statement').close(); $('#openBrief').click(); };
   $('#statementTarget').onchange = refreshConsultation;
   $('#statementMode').onchange = refreshConsultation;
   new MutationObserver(localizeConsultation).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
