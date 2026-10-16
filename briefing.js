@@ -13,8 +13,8 @@
       noRecords: 'まだ記録がありません。ステップ1で、日時と起きたことを記録してから確認してください。',
       resultTitle: '相談準備メモ（自動下書き）',
       resultNote: '外部AIやサーバーには送信せず、この端末のブラウザ内で作成します。内容に誤りがないか、必ず本人が確認してください。これは公的機関の正式様式ではありません。',
-      previousStep: 'ステップ2：相談文へ戻る',
-      copy: 'コピー', download: 'テキスト保存', print: '印刷 / PDF保存', nextHelp: 'ステップ4：国・地域の相談先を選ぶ', copied: 'コピーしました', unknown: '不明',
+      previousStep: 'ステップ1：記録へ戻る',
+      copy: 'コピー', download: 'テキスト保存', print: '印刷 / PDF保存', nextHelp: 'ステップ3：相談文を作る', copied: 'コピーしました', unknown: '不明',
       facts: '確認できている事実（5W1H）', request: '相談したいこと', emptyWhen: '日時は記録されていません',
       unknownRoute: '記録だけでは特定できないため、わかる範囲で相談先に伝えます。',
       how: 'この端末内に記録を保存しました。画像を保存している場合は、必要に応じて提示します。',
@@ -29,8 +29,8 @@
       noRecords: 'There are no saved notes yet. First record when and what happened in Step 1.',
       resultTitle: 'Consultation preparation note (automatic draft)',
       resultNote: 'This is created in this browser without sending your notes to an external AI or server. Check it carefully before using it. It is not an official public-authority form.',
-      previousStep: 'Back to Step 2: Consultation note',
-      copy: 'Copy', download: 'Save text', print: 'Print / save PDF', nextHelp: 'Step 4: Choose country & regional help', copied: 'Copied', unknown: 'Unknown',
+      previousStep: 'Back to Step 1: Record',
+      copy: 'Copy', download: 'Save text', print: 'Print / save PDF', nextHelp: 'Step 3: Create a consultation note', copied: 'Copied', unknown: 'Unknown',
       facts: 'Facts I can confirm (5W1H)', request: 'What I need help with', emptyWhen: 'No date or time was saved',
       unknownRoute: 'The record does not identify this clearly; I will share what I know with the support service.',
       how: 'I saved a record on this device. If I saved images, I can provide them when needed.',
@@ -72,7 +72,7 @@
       ? `<button class="ghost" type="button" id="briefPreviousStep">${safe(text.previousStep)}</button><button class="ghost" type="button" id="briefCopy">${safe(text.copy)}</button><button class="ghost" type="button" id="briefDownload">${safe(text.download)}</button><button class="ghost" type="button" id="briefPrint">${safe(text.print)}</button><button class="secondary" type="button" id="briefHelp">${safe(text.nextHelp)}</button>`
       : `<button class="ghost" type="button" id="briefPreviousStep">${safe(text.previousStep)}</button>`;
     dialog.showModal();
-    $('#briefPreviousStep').onclick = () => { if (content) currentDraft = $('#briefResult').value; dialog.close(); $('#openStatement').click(); };
+    $('#briefPreviousStep').onclick = () => { if (content) currentDraft = $('#briefResult').value; dialog.close(); $('#openLog').click(); };
     if (!content) return;
     $('#briefResult').value = content;
     $('#briefCopy').onclick = async () => { await navigator.clipboard.writeText($('#briefResult').value); alert(text.copied); };
@@ -86,7 +86,7 @@
       win.document.write(`<!doctype html><meta charset="utf-8"><title>${safe(text.resultTitle)}</title><style>body{font-family:system-ui,"Hiragino Sans",Meiryo,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.7;color:#19213b;white-space:pre-wrap}</style><body>${safe($('#briefResult').value)}</body>`);
       win.document.close(); win.focus(); win.print();
     };
-    $('#briefHelp').onclick = () => { currentDraft = $('#briefResult').value; dialog.close(); $('#openHelp').click(); };
+    $('#briefHelp').onclick = () => { currentDraft = $('#briefResult').value; dialog.close(); $('#openStatement').click(); };
   }
 
   window.CyberCareBrief = { open: openDraft };

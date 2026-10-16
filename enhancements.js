@@ -149,10 +149,10 @@
   };
   $('#openStatement').onclick = () => { localizeConsultation(); refreshConsultation(); $('#statement').showModal(); };
   $('#backFromLog').onclick = () => { $('#log').close(); $('#guide').showModal(); window.showResult(); };
-  $('#nextFromLog').onclick = () => { $('#log').close(); $('#openStatement').click(); };
-  $('#backFromStatement').onclick = () => { $('#statement').close(); $('#openLog').click(); };
-  $('#nextFromStatement').onclick = () => { $('#statement').close(); window.CyberCareBrief.open(); };
-  $('#backFromHelp').onclick = () => { $('#help').close(); window.CyberCareBrief.open(); };
+  $('#nextFromLog').onclick = () => { $('#log').close(); window.CyberCareBrief.open(); };
+  $('#backFromStatement').onclick = () => { $('#statement').close(); window.CyberCareBrief.open(); };
+  $('#nextFromStatement').onclick = () => { $('#statement').close(); $('#openHelp').click(); };
+  $('#backFromHelp').onclick = () => { $('#help').close(); $('#openStatement').click(); };
   $('#statementTarget').onchange = refreshConsultation;
   $('#statementMode').onchange = refreshConsultation;
   new MutationObserver(localizeConsultation).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
