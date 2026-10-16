@@ -1,4 +1,4 @@
-const CACHE = 'cyber-care-v6';
+const CACHE = 'cyber-care-v7';
 const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js', './briefing.js'];
 
 self.addEventListener('install', event =>
@@ -18,8 +18,20 @@ self.addEventListener('activate', event =>
 );
 
 self.addEventListener('fetch', event => {
-  if (event.request.method === 'GET') {
-    event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request)));
-  }
+  if (event.request.method !== 'GET') return;
+
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response.ok) {
+          caches.open(CACHE).then(cache => cache.put(event.request, response.clone()));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(hit => hit || caches.match('./index.html')))
+  );
 });
 
