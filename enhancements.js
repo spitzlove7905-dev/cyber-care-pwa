@@ -62,21 +62,24 @@
   window.renderRecords = renderRecordsWithImages;
   renderRecordsWithImages();
 
-  $('#saveLog').onclick = async () => {
+  const savePreparedRecord = async ({ showToast = true } = {}) => {
     const raw = $('#event').value.trim();
-    if (!raw) { toast(document.documentElement.lang === 'ja' ? '何が起きたかを入力してください。' : 'Please describe what happened.'); return; }
+    if (!raw) { if (showToast) toast(document.documentElement.lang === 'ja' ? '何が起きたかを入力してください。' : 'Please describe what happened.'); return false; }
     const files = [...$('#evidenceFiles').files];
-    if (files.length > 5 || files.some(file => file.size > 8 * 1024 * 1024)) { toast(document.documentElement.lang === 'ja' ? '画像は5枚まで、1枚8MBまでです。' : 'Use up to 5 images, 8MB each.'); return; }
-    const when = toLocal(dateField.value), event = sanitize(raw), saved = new Date().toLocaleString(), id = crypto.randomUUID();
+    if (files.length > 5 || files.some(file => file.size > 8 * 1024 * 1024)) { if (showToast) toast(document.documentElement.lang === 'ja' ? '画像は5枚まで、1枚8MBまでです。' : 'Use up to 5 images, 8MB each.'); return false; }
+    const place = $('#place').value, source = $('#source').value, response = $('#response').value, request = $('#request').value;
+    const prepared = [`どこで：${place}`, `誰から・どの経路：${source}`, `何が起きたか：${raw}`, `どのように対応したか：${response}`, `何を相談したいか：${request}`].filter(line => !line.endsWith('：')).join('\n');
+    const when = toLocal(dateField.value), event = sanitize(prepared), saved = new Date().toLocaleString(), id = crypto.randomUUID();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode([when, event].join('\n')));
     const sha = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
     const records = JSON.parse(localStorage.getItem('cc-records') || '[]');
     records.unshift({ id, event, when, saved, sha, imageCount: files.length });
     localStorage.setItem('cc-records', JSON.stringify(records));
     await putImages(id, files);
-    $('#event').value = ''; dateField.value = ''; $('#evidenceFiles').value = ''; $('#imagePreview').innerHTML = '';
-    await renderRecordsWithImages(); toast(document.documentElement.lang === 'ja' ? '画像を含む記録を、この端末内に保存しました。' : 'Your record and images were saved on this device.');
+    $('#event').value = ''; $('#place').value = ''; $('#source').value = ''; $('#response').value = ''; $('#request').value = ''; dateField.value = ''; $('#evidenceFiles').value = ''; $('#imagePreview').innerHTML = '';
+    await renderRecordsWithImages(); if (showToast) toast(document.documentElement.lang === 'ja' ? '画像を含む記録を、この端末内に保存しました。' : 'Your record and images were saved on this device.'); return true;
   };
+  $('#saveLog').onclick = () => savePreparedRecord();
 
   async function printableEvidence() {
     const records = JSON.parse(localStorage.getItem('cc-records') || '[]');
@@ -121,8 +124,7 @@
   const consultationLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
   const consultationFacts = language => {
     const records = consultationRecords();
-    const briefDraft = sessionStorage.getItem('cc-brief-draft') || '';
-    if (!records.length) return briefDraft.trim() || (language === 'ja' ? '（まだ記録がありません。「証拠・出来事を記録」から、いつ・何が起きたかを先にメモしてください。）' : '(No saved notes yet. First use “Record evidence & events” to note when and what happened.)');
+    if (!records.length) return language === 'ja' ? '（まだ記録がありません。ステップ1で、5W1Hをわかる範囲で入力してください。）' : '(No saved notes yet. In Step 1, enter the 5W1H details you know.)';
     return records.map((record, index) => `${index + 1}. ${record.when || record.saved}\n   ${record.event}`).join('\n');
   };
   const consultationText = () => {
@@ -141,6 +143,9 @@
   const refreshConsultation = () => { $('#statementText').value = consultationText(); };
   const localizeConsultation = () => {
     const english = consultationLanguage() === 'en';
+    $('#openLog').querySelector('h3').textContent = english ? 'Record & prepare 5W1H' : '記録・5W1Hの相談準備';
+    $('#openLog').querySelector('p').textContent = english ? 'Organize facts into a 5W1H preparation note for your consultation.' : '日時と出来事を、相談で伝える5W1Hとして整理します。';
+    $('#log h2').textContent = english ? 'Record & prepare 5W1H' : '記録・5W1Hの相談準備';
     $('#statementModeLabel').textContent = english ? 'How would you like to use this?' : '伝え方を選ぶ';
     $('#statementMode').options[0].text = english ? 'Speak by phone' : '電話で伝える';
     $('#statementMode').options[1].text = english ? 'Send by form or email' : 'フォーム・メールで送る';
@@ -174,11 +179,9 @@
     $('#briefPrint').onclick = () => { const win = window.open('', '_blank'); if (!win) return; win.document.write(`<pre>${esc($('#briefResult').value)}</pre>`); win.document.close(); win.focus(); win.print(); };
     $('#briefHelp').onclick = () => { sessionStorage.setItem('cc-brief-draft', $('#briefResult').value); $('#brief').close(); $('#openStatement').click(); };
   };
-  window.CyberCareBrief = { open: openBriefFallback };
-  $('#openBrief').onclick = openBriefFallback;
   $('#backFromLog').onclick = () => { $('#log').close(); $('#guide').showModal(); window.showResult(); };
-  $('#nextFromLog').onclick = () => { $('#log').close(); window.CyberCareBrief.open(); };
-  $('#backFromStatement').onclick = () => { $('#statement').close(); window.CyberCareBrief.open(); };
+  $('#nextFromLog').onclick = async () => { const saved = $('#event').value.trim() ? await savePreparedRecord({ showToast: false }) : true; if (!saved) return; $('#log').close(); $('#openStatement').click(); };
+  $('#backFromStatement').onclick = () => { $('#statement').close(); $('#openLog').click(); };
   $('#nextFromStatement').onclick = () => { $('#statement').close(); $('#openHelp').click(); };
   $('#backFromHelp').onclick = () => { $('#help').close(); $('#openStatement').click(); };
   $('#statementTarget').onchange = refreshConsultation;

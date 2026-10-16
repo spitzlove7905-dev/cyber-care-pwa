@@ -1,5 +1,5 @@
-const CACHE = 'cyber-care-v8';
-const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js', './briefing.js'];
+const CACHE = 'cyber-care-v9';
+const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js'];
 
 self.addEventListener('install', event =>
   event.waitUntil(
