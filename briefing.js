@@ -10,7 +10,8 @@
       launcherDesc: '記録から、5W1Hの相談用下書きを自動で整えます。',
       title: '相談内容の最終確認（5W1H）',
       note: 'この端末に保存した記録から自動で作った下書きです。内容を確認・編集してから、相談先を選びます。',
-      noRecords: 'まだ記録がありません。ステップ1で、日時と起きたことを記録してから確認してください。',
+      noRecords: 'まだ記録がありません。ステップ1へ戻って記録を作るか、わかる範囲の5W1Hを下に直接入力して進められます。',
+      manualLabel: 'わかる範囲の5W1Hメモ', manualPlaceholder: '例：いつ／どこで・誰から／何が起きたか／自分で行った対応／相談したいこと',
       resultTitle: '相談準備メモ（自動下書き）',
       resultNote: '外部AIやサーバーには送信せず、この端末のブラウザ内で作成します。内容に誤りがないか、必ず本人が確認してください。これは公的機関の正式様式ではありません。',
       previousStep: 'ステップ1：記録へ戻る',
@@ -26,7 +27,8 @@
       launcherDesc: 'Automatically organize your saved notes into a 5W1H draft.',
       title: 'Final review of your consultation (5W1H)',
       note: 'This draft is automatically created from notes saved on this device. Review and edit it before choosing where to seek help.',
-      noRecords: 'There are no saved notes yet. First record when and what happened in Step 1.',
+      noRecords: 'There are no saved notes yet. Return to Step 1 to create a record, or enter what you know in the 5W1H note below and continue.',
+      manualLabel: '5W1H notes (what you know so far)', manualPlaceholder: 'Example: when / where or who / what happened / what you did / what you need help with',
       resultTitle: 'Consultation preparation note (automatic draft)',
       resultNote: 'This is created in this browser without sending your notes to an external AI or server. Check it carefully before using it. It is not an official public-authority form.',
       previousStep: 'Back to Step 1: Record',
@@ -67,14 +69,17 @@
     $('#briefBar').style.width = '100%';
     $('#briefStep').innerHTML = content
       ? `<div class="field"><h3>${safe(text.resultTitle)}</h3><p class="sub">${safe(text.resultNote)}</p><textarea id="briefResult" aria-label="Consultation preparation note"></textarea></div>`
-      : `<div class="hint">${safe(text.noRecords)}</div>`;
+      : `<div class="hint">${safe(text.noRecords)}</div><div class="field"><label for="briefResult">${safe(text.manualLabel)}</label><textarea id="briefResult" aria-label="Consultation preparation note" placeholder="${safe(text.manualPlaceholder)}"></textarea></div>`;
     $('#briefActions').innerHTML = content
       ? `<button class="ghost" type="button" id="briefPreviousStep">${safe(text.previousStep)}</button><button class="ghost" type="button" id="briefCopy">${safe(text.copy)}</button><button class="ghost" type="button" id="briefDownload">${safe(text.download)}</button><button class="ghost" type="button" id="briefPrint">${safe(text.print)}</button><button class="secondary" type="button" id="briefHelp">${safe(text.nextHelp)}</button>`
-      : `<button class="ghost" type="button" id="briefPreviousStep">${safe(text.previousStep)}</button>`;
+      : `<button class="ghost" type="button" id="briefPreviousStep">${safe(text.previousStep)}</button><button class="secondary" type="button" id="briefHelp">${safe(text.nextHelp)}</button>`;
     dialog.showModal();
     $('#briefPreviousStep').onclick = () => { if (content) currentDraft = $('#briefResult').value; dialog.close(); $('#openLog').click(); };
-    if (!content) return;
-    $('#briefResult').value = content;
+    $('#briefResult').value = content || sessionStorage.getItem('cc-brief-draft') || '';
+    if (!content) {
+      $('#briefHelp').onclick = () => { currentDraft = $('#briefResult').value; sessionStorage.setItem('cc-brief-draft', currentDraft); dialog.close(); $('#openStatement').click(); };
+      return;
+    }
     $('#briefCopy').onclick = async () => { await navigator.clipboard.writeText($('#briefResult').value); alert(text.copied); };
     $('#briefDownload').onclick = () => {
       const blob = new Blob([$('#briefResult').value], { type: 'text/plain;charset=utf-8' });
@@ -86,7 +91,7 @@
       win.document.write(`<!doctype html><meta charset="utf-8"><title>${safe(text.resultTitle)}</title><style>body{font-family:system-ui,"Hiragino Sans",Meiryo,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.7;color:#19213b;white-space:pre-wrap}</style><body>${safe($('#briefResult').value)}</body>`);
       win.document.close(); win.focus(); win.print();
     };
-    $('#briefHelp').onclick = () => { currentDraft = $('#briefResult').value; dialog.close(); $('#openStatement').click(); };
+    $('#briefHelp').onclick = () => { currentDraft = $('#briefResult').value; sessionStorage.setItem('cc-brief-draft', currentDraft); dialog.close(); $('#openStatement').click(); };
   }
 
   window.CyberCareBrief = { open: openDraft };

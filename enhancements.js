@@ -121,7 +121,8 @@
   const consultationLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
   const consultationFacts = language => {
     const records = consultationRecords();
-    if (!records.length) return language === 'ja' ? '（まだ記録がありません。「証拠・出来事を記録」から、いつ・何が起きたかを先にメモしてください。）' : '(No saved notes yet. First use “Record evidence & events” to note when and what happened.)';
+    const briefDraft = sessionStorage.getItem('cc-brief-draft') || '';
+    if (!records.length) return briefDraft.trim() || (language === 'ja' ? '（まだ記録がありません。「証拠・出来事を記録」から、いつ・何が起きたかを先にメモしてください。）' : '(No saved notes yet. First use “Record evidence & events” to note when and what happened.)');
     return records.map((record, index) => `${index + 1}. ${record.when || record.saved}\n   ${record.event}`).join('\n');
   };
   const consultationText = () => {
@@ -153,22 +154,25 @@
     const english = consultationLanguage() === 'en';
     const records = consultationRecords();
     const labels = english
-      ? { title:'Review your consultation (5W1H)', note:'Review this browser-local draft before you contact a support service.', empty:'There are no saved notes yet. First add a record in Step 1.', previous:'Back to Step 1: Record', copy:'Copy', download:'Save text', print:'Print / save PDF', next:'Step 3: Create a consultation note', copied:'Copied' }
-      : { title:'相談内容の最終確認（5W1H）', note:'この端末に保存した記録から作った下書きです。内容を確認してから相談先を選びます。', empty:'まだ記録がありません。ステップ1で、日時と起きたことを記録してから確認してください。', previous:'ステップ1：記録へ戻る', copy:'コピー', download:'テキスト保存', print:'印刷 / PDF保存', next:'ステップ3：相談文を作る', copied:'コピーしました' };
+      ? { title:'Review your consultation (5W1H)', note:'Review this browser-local draft before you contact a support service.', empty:'There are no saved notes yet. Return to Step 1 to create a record, or enter what you know below and continue.', manualLabel:'5W1H notes (what you know so far)', manualPlaceholder:'Example: when / where or who / what happened / what you did / what you need help with', previous:'Back to Step 1: Record', copy:'Copy', download:'Save text', print:'Print / save PDF', next:'Step 3: Create a consultation note', copied:'Copied' }
+      : { title:'相談内容の最終確認（5W1H）', note:'この端末に保存した記録から作った下書きです。内容を確認してから相談先を選びます。', empty:'まだ記録がありません。ステップ1へ戻って記録を作るか、わかる範囲の5W1Hを下に直接入力して進められます。', manualLabel:'わかる範囲の5W1Hメモ', manualPlaceholder:'例：いつ／どこで・誰から／何が起きたか／自分で行った対応／相談したいこと', previous:'ステップ1：記録へ戻る', copy:'コピー', download:'テキスト保存', print:'印刷 / PDF保存', next:'ステップ3：相談文を作る', copied:'コピーしました' };
     const facts = records.map((record, index) => `${index + 1}. ${record.when || record.saved}\n   ${record.event}`).join('\n');
     const draft = english
       ? `Consultation preparation note (5W1H)\n\nWhen:\n${facts}\n\nWhere / who / route:\nI will share the details I know with the support service.\n\nWhat happened:\n${facts}\n\nHow I responded:\nI saved a record on this device.\n\nWhy I am concerned:\nI would like to confirm whether this may involve unauthorized use or another cyber incident.\n\nWhat I need help with:\nPlease advise on the appropriate contact point, evidence to preserve, and any action needed immediately.`
       : `相談準備メモ（5W1H）\n\nいつ：\n${facts}\n\nどこで・誰から・どの経路：\nわかる範囲で相談先に伝えます。\n\n何が起きたか：\n${facts}\n\nどのように対応したか：\nこの端末内に記録を保存しました。\n\nなぜ心配しているか：\n不正利用やサイバー上のトラブルの可能性を確認したいです。\n\n相談したいこと：\n適切な相談先、追加で保全すべき証拠、すぐに必要な対応を教えてください。`;
     $('#briefTitle').textContent = labels.title; $('#briefNote').textContent = labels.note; $('#briefBar').style.width = '100%';
-    $('#briefStep').innerHTML = records.length ? `<div class="field"><textarea id="briefResult" aria-label="Consultation preparation note"></textarea></div>` : `<div class="hint">${esc(labels.empty)}</div>`;
-    $('#briefActions').innerHTML = records.length ? `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button><button class="ghost" type="button" id="briefCopy">${esc(labels.copy)}</button><button class="ghost" type="button" id="briefDownload">${esc(labels.download)}</button><button class="ghost" type="button" id="briefPrint">${esc(labels.print)}</button><button class="secondary" type="button" id="briefHelp">${esc(labels.next)}</button>` : `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button>`;
+    $('#briefStep').innerHTML = records.length ? `<div class="field"><textarea id="briefResult" aria-label="Consultation preparation note"></textarea></div>` : `<div class="hint">${esc(labels.empty)}</div><div class="field"><label for="briefResult">${esc(labels.manualLabel)}</label><textarea id="briefResult" aria-label="Consultation preparation note" placeholder="${esc(labels.manualPlaceholder)}"></textarea></div>`;
+    $('#briefActions').innerHTML = records.length ? `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button><button class="ghost" type="button" id="briefCopy">${esc(labels.copy)}</button><button class="ghost" type="button" id="briefDownload">${esc(labels.download)}</button><button class="ghost" type="button" id="briefPrint">${esc(labels.print)}</button><button class="secondary" type="button" id="briefHelp">${esc(labels.next)}</button>` : `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button><button class="secondary" type="button" id="briefHelp">${esc(labels.next)}</button>`;
     $('#brief').showModal(); $('#briefPreviousStep').onclick = () => { $('#brief').close(); $('#openLog').click(); };
-    if (!records.length) return;
-    $('#briefResult').value = draft;
+    $('#briefResult').value = records.length ? draft : (sessionStorage.getItem('cc-brief-draft') || '');
+    if (!records.length) {
+      $('#briefHelp').onclick = () => { sessionStorage.setItem('cc-brief-draft', $('#briefResult').value); $('#brief').close(); $('#openStatement').click(); };
+      return;
+    }
     $('#briefCopy').onclick = async () => { await navigator.clipboard.writeText($('#briefResult').value); toast(labels.copied); };
     $('#briefDownload').onclick = () => { const blob = new Blob([$('#briefResult').value], {type:'text/plain;charset=utf-8'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'cyber-care-consultation-note.txt'; link.click(); URL.revokeObjectURL(link.href); };
     $('#briefPrint').onclick = () => { const win = window.open('', '_blank'); if (!win) return; win.document.write(`<pre>${esc($('#briefResult').value)}</pre>`); win.document.close(); win.focus(); win.print(); };
-    $('#briefHelp').onclick = () => { $('#brief').close(); $('#openStatement').click(); };
+    $('#briefHelp').onclick = () => { sessionStorage.setItem('cc-brief-draft', $('#briefResult').value); $('#brief').close(); $('#openStatement').click(); };
   };
   window.CyberCareBrief = { open: openBriefFallback };
   $('#openBrief').onclick = openBriefFallback;
