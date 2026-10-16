@@ -119,6 +119,9 @@
   modeField.className = 'field';
   modeField.innerHTML = `<label for="statementMode" id="statementModeLabel">伝え方を選ぶ</label><select id="statementMode"><option value="phone">電話で伝える</option><option value="written">フォーム・メールで送る</option></select><p class="sub" id="statementModeHint" style="font-size:.9rem;margin-top:8px"></p>`;
   statementTargetField.after(modeField);
+  const overviewButton = document.createElement('button');
+  overviewButton.id = 'viewStatement'; overviewButton.type = 'button'; overviewButton.className = 'ghost';
+  $('#copyStatement').before(overviewButton);
 
   const consultationRecords = () => JSON.parse(localStorage.getItem('cc-records') || '[]');
   const consultationLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
@@ -133,11 +136,11 @@
     const phone = $('#statementMode').value === 'phone';
     const facts = consultationFacts(language);
     if (language === 'en') {
-      if (phone) return `Phone consultation guide\n\nStart with:\n“Hello. I would like advice about a possible cyber incident or unauthorized use. I have written down the facts so I can explain them clearly.”\n\nShare the facts in this order:\n${facts}\n\nThen say:\n“I would appreciate guidance on the next steps, how to preserve evidence, and whether there is anything I should do immediately.”\n\nHelpful tip: answer only what you know. If you are unsure, say “I do not know yet.”\n\nThis is a preparation guide, not an official report.`;
+      if (phone) return `What to say by phone\n\nStart with\n“Hello. I would like advice about a possible cyber incident or unauthorized use. May I share the facts I have confirmed?”\n\nFacts I can confirm\n${facts}\n\nWhat I need help with\n“Please advise on the next steps, preserving evidence, and anything I should do immediately.”\n\nFor anything uncertain, I will say “I do not know yet.”`;
       return `Consultation request draft\n\nI would like advice about a possible cyber incident or unauthorized use.\n\nFacts I can confirm:\n${facts}\n\nWhat I need help with:\nPlease advise on the next steps, evidence preservation, and any immediate protective action.\n\nAnything I cannot confirm is unknown at this time. This is a preparation draft, not an official report.`;
     }
     const destination = target === 'company' ? 'サービス会社・金融機関' : '警察・公的相談窓口';
-    if (phone) return `電話での伝え方（${destination}への相談準備）\n\n最初に：\n「サイバー上の件で相談があります。確認できている事実を時系列でメモしていますので、相談してもよろしいでしょうか。」\n\n事実は、次の順で短く伝えます：\n${facts}\n\n最後に：\n「今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。」\n\n伝えるコツ：\n・見たこと、届いたこと、したことだけを伝える\n・わからない点は「現時点では不明です」と伝える\n・担当者の質問に沿って、メモを見ながら答える\n\nこれは相談準備用のガイドであり、正式な被害届や公的機関の様式ではありません。`;
+    if (phone) return `電話で伝える内容（${destination}への相談準備）\n\n最初に\n「サイバー上の件で相談があります。確認できている事実をお伝えしてもよろしいでしょうか。」\n\n確認できている事実\n${facts}\n\n相談したいこと\n「今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。」\n\n不明な点は「現時点では不明です」と伝えます。`;
     return `${destination}への相談文（下書き）\n\nサイバー上のトラブルまたは不正利用の可能性について相談します。\n\n【確認できている事実】\n${facts}\n\n【相談したいこと】\n今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。\n\n不明な点は現時点では不明です。これは相談準備用の下書きであり、正式な被害届や公的機関の様式ではありません。`;
   };
   const refreshConsultation = () => { $('#statementText').value = consultationText(); };
@@ -150,10 +153,29 @@
     $('#statementMode').options[0].text = english ? 'Speak by phone' : '電話で伝える';
     $('#statementMode').options[1].text = english ? 'Send by form or email' : 'フォーム・メールで送る';
     $('#statementModeHint').textContent = english ? 'A short guide will put facts first and make it easier to answer questions.' : '事実を先に、短く伝えられるように整えます。';
+    overviewButton.textContent = english ? 'View full text for a call' : '電話で確認する（全文表示）';
+    $('#statementOverviewTitle').textContent = english ? 'Full text for a call' : '電話で確認する';
+    $('#statementOverviewNote').textContent = english ? 'Review the complete text in a wide, easy-to-read view during your call.' : '電話中に見やすいよう、作成した内容を広い画面で表示します。';
+    $('#copyOverview').textContent = english ? 'Copy' : 'コピー';
+    $('#pdfOverview').textContent = english ? 'Save as PDF' : 'PDFとして保存';
     const description = $('#openStatement').querySelector('p');
     if (description) description.textContent = english ? 'Create a clear phone guide or written draft from your notes.' : '記録から、電話や相談フォームで伝える順番を整えます。';
   };
   $('#openStatement').onclick = () => { localizeConsultation(); refreshConsultation(); $('#statement').showModal(); };
+  const showStatementOverview = () => {
+    const text = $('#statementText').value || consultationText();
+    $('#statementOverviewText').textContent = text;
+    $('#statementOverview').showModal();
+    requestAnimationFrame(() => {
+      const view = $('#statementOverviewText');
+      let size = 16;
+      view.style.fontSize = '';
+      while (view.scrollHeight > view.clientHeight && size > 12) { size -= 1; view.style.fontSize = `${size}px`; }
+    });
+  };
+  overviewButton.onclick = showStatementOverview;
+  $('#copyOverview').onclick = async () => { await navigator.clipboard.writeText($('#statementOverviewText').textContent); toast(consultationLanguage() === 'en' ? 'Copied' : 'コピーしました'); };
+  $('#pdfOverview').onclick = () => savePdf(consultationLanguage() === 'en' ? 'Cyber Care — Consultation request' : 'Cyber Care — 相談文', $('#statementOverviewText').textContent || consultationText());
   // Keep the 5W1H step available even while an older PWA cache is refreshing briefing.js.
   const openBriefFallback = () => {
     const english = consultationLanguage() === 'en';
