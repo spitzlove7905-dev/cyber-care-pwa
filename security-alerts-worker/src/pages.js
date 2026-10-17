@@ -18,18 +18,41 @@ fetch('/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=
 `);
 
 export const adminPage = shell('速報の承認待ち', `<p>公式の対象・影響範囲・対処を確認してから判断してください。取得原文は英語のまま表示します。</p><section><p>管理者ログインで認証済みです。共有端末では利用後にログアウトしてください。</p><button id="load">承認待ちを読み込む</button><button id="logout">ログアウト</button></section><p id="message" role="status"></p><main id="list"></main>`, renderHelpers + `
-let enabled=false;
+let enabled=false; let bulkBusy=false;
 const message=document.getElementById('message'); const list=document.getElementById('list');
 async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'content-type':'application/json'}:{},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(r.status===401?'ログインの有効期限が切れました。画面を再読み込みしてください。':r.status===409?'内容が更新されたか、審査済みです。一覧を読み直してください。':'操作できませんでした。設定や接続を確認してください。');return r.json()}
 async function load(path='/admin/pending') {
+ if(bulkBusy)return;
+ bulkButton.disabled=true;
  list.replaceChildren(); message.textContent='読み込み中…';
  try {enabled=(await api('/admin/status')).reviewActionsEnabled;const data=await api(path);message.textContent=data.alerts.length+'件（最大100件）'+(enabled?'':'。現在は確認専用です。公開・却下・取り下げ操作は無効です。');
  for(const a of data.alerts) {const e=card(a);for(const [label,status] of (path==='/admin/published'?[['公開を取り下げる','withdrawn']]:[['公開を承認','published'],['却下','rejected']])) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load(path)}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
+ bulkButton.disabled=!enabled || path!=='/admin/pending' || data.alerts.length===0;
  }catch(err){message.textContent=err.message}
 }
+const bulkButton=text('button','承認待ちをすべて公開');bulkButton.disabled=true;document.getElementById('load').after(bulkButton);
+const bulkHint=text('p','上の「承認待ちをすべて公開」は、確認画面を挟まずワンタップで実行します。開始時点の承認待ちを公開し、後から追加された速報は次回の対象になります。');bulkButton.after(bulkHint);
+bulkButton.onclick=async()=>{
+ if(bulkBusy || !enabled)return;
+ bulkBusy=true;for(const b of document.querySelectorAll('button'))b.disabled=true;
+ let published=0, skipped=0;let outcome='';
+ try {
+  message.textContent='公開対象を取得中…';
+  // Capture the queue before publishing so arrivals during the run stay pending.
+  const snapshot=(await api('/admin/status')).serverTime;const targets=[];let cursor='';
+  do {const data=await api('/admin/pending?snapshot='+encodeURIComponent(snapshot)+'&cursor='+cursor);targets.push(...data.alerts);cursor=data.nextCursor || '';}while(cursor);
+  for(const a of targets){
+   message.textContent='一括公開中… '+published+'件公開 / '+targets.length+'件';
+   try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status:'published'});published++;}
+   catch(err){if(err.message.includes('審査済み')){skipped++;continue;}throw err;}
+  }
+  outcome=published+'件を公開しました。'+(skipped?'内容変更・審査済みのため'+skipped+'件をスキップしました。':'');
+ }catch(err){outcome=published+'件の公開を確認した後、処理を停止しました。'+err.message+' 最新の一覧と操作履歴を確認してください。';}
+ finally{bulkBusy=false;for(const b of document.querySelectorAll('button'))b.disabled=false;await load();message.textContent=outcome;}
+};
 document.getElementById('load').onclick=()=>load();
 document.getElementById('logout').onclick=()=>{list.replaceChildren();location.assign('/cdn-cgi/access/logout');};
 const publishedButton=text('button','公開済みを確認');publishedButton.onclick=()=>load('/admin/published');document.getElementById('load').after(publishedButton);
-const auditButton=text('button','操作履歴を確認');auditButton.onclick=async()=>{list.replaceChildren();try{const data=await api('/admin/audit');message.textContent='最近の操作（最大100件）';for(const event of data.events)list.append(text('p',event.created_at+' / '+event.action+' / '+event.actor))}catch(err){message.textContent=err.message}};publishedButton.after(auditButton);
+const auditButton=text('button','操作履歴を確認');auditButton.onclick=async()=>{bulkButton.disabled=true;list.replaceChildren();try{const data=await api('/admin/audit');message.textContent='最近の操作（最大100件）';for(const event of data.events)list.append(text('p',event.created_at+' / '+event.action+' / '+event.actor))}catch(err){message.textContent=err.message}};publishedButton.after(auditButton);
 load();
 `);

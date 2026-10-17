@@ -125,7 +125,7 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
-  if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true' });
+  if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true', serverTime: new Date().toISOString() });
   if (request.method === 'GET' && url.pathname === '/admin/published') {
     const result = await env.DB.prepare("SELECT * FROM alerts WHERE status = 'published' ORDER BY published_at DESC LIMIT 100").all();
     return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })) });
@@ -135,6 +135,13 @@ async function handleAdmin(request, env, url) {
     return json({ events: result.results });
   }
   if (request.method === 'GET' && url.pathname === '/admin/pending') {
+    if (url.searchParams.has('snapshot')) {
+      const snapshot = url.searchParams.get('snapshot');
+      const cursor = url.searchParams.get('cursor') || '';
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(snapshot) || !Number.isFinite(Date.parse(snapshot)) || (cursor && !/^[a-f0-9]{64}$/.test(cursor))) return json({ error: 'invalid_cursor' }, 400);
+      const result = await env.DB.prepare("SELECT * FROM alerts WHERE status = 'pending_review' AND created_at <= ? AND id > ? ORDER BY id LIMIT 100").bind(snapshot, cursor).all();
+      return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })), nextCursor: result.results.length === 100 ? result.results.at(-1).id : null });
+    }
     const result = await env.DB.prepare(`SELECT id, cve_id, title, summary, recommended_action, evidence_json, severity_score, source_url, source_updated_at, created_at, content_hash FROM alerts WHERE status = 'pending_review' ORDER BY severity_score DESC, created_at DESC LIMIT 100`).all();
     return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })) });
   }
