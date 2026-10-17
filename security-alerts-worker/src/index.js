@@ -1,4 +1,5 @@
 import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKevRecord } from './policy.js';
+import { adminPage, alertsPage } from './pages.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const PUBLIC_CACHE_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300' };
@@ -6,6 +7,8 @@ const PUBLIC_CACHE_HEADERS = { 'content-type': 'application/json; charset=utf-8'
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === 'GET' && url.pathname === '/admin/') return html(adminPage);
+    if (request.method === 'GET' && url.pathname === '/alerts') return html(alertsPage);
     if (request.method === 'GET' && url.pathname === '/healthz') return json({ ok: true });
     if (request.method === 'GET' && url.pathname === '/v1/alerts') return listPublishedAlerts(env);
     if (request.method === 'GET' && url.pathname.startsWith('/v1/alerts/')) return getPublishedAlert(env, url.pathname.slice('/v1/alerts/'.length));
@@ -28,7 +31,7 @@ async function runMonitor(env) {
 }
 
 async function ingestCisaKev(env, source) {
-  const savedState = await env.DB.prepare('SELECT etag, last_modified FROM source_state WHERE source_key = ?').bind(source.key).first();
+  const savedState = await env.DB.prepare('SELECT etag, last_modified, last_success_at FROM source_state WHERE source_key = ?').bind(source.key).first();
   const headers = { accept: 'application/json' };
   if (savedState?.etag) headers['if-none-match'] = savedState.etag;
   if (savedState?.last_modified) headers['if-modified-since'] = savedState.last_modified;
@@ -63,7 +66,10 @@ async function upsertCandidate(env, source, candidate, autoPublishEnabled, now) 
   }));
   const id = await sha256(candidate.eventKey);
   const existing = await env.DB.prepare('SELECT id, content_hash, status FROM alerts WHERE event_key = ?').bind(candidate.eventKey).first();
-  const desiredStatus = existing?.status === 'published' ? 'published' : decision.status;
+  // Reviewed decisions persist. A source refresh must never republish a rejection.
+  const desiredStatus = existing && existing.status !== 'pending_review' ? existing.status : decision.status;
+  // Freeze reviewed text until a separate revision review workflow is available.
+  if (existing && existing.status !== 'pending_review') return;
   if (existing?.content_hash === contentHash && existing.status === desiredStatus) return;
   const publishedAt = desiredStatus === 'published' ? now : null;
 
@@ -112,15 +118,32 @@ function publicAlert(row) {
 
 async function handleAdmin(request, env, url) {
   if (!env.ADMIN_API_TOKEN || request.headers.get('authorization') !== `Bearer ${env.ADMIN_API_TOKEN}`) return json({ error: 'unauthorized' }, 401);
+  if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true' });
   if (request.method === 'GET' && url.pathname === '/admin/pending') {
-    const result = await env.DB.prepare(`SELECT id, cve_id, title, summary, recommended_action, evidence_json, severity_score, source_url, source_updated_at, created_at FROM alerts WHERE status = 'pending_review' ORDER BY severity_score DESC, created_at DESC LIMIT 100`).all();
-    return json({ alerts: result.results.map(publicAlert) });
+    const result = await env.DB.prepare(`SELECT id, cve_id, title, summary, recommended_action, evidence_json, severity_score, source_url, source_updated_at, created_at, content_hash FROM alerts WHERE status = 'pending_review' ORDER BY severity_score DESC, created_at DESC LIMIT 100`).all();
+    return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })) });
+  }
+  if (request.method === 'POST' && url.pathname === '/admin/review') {
+    if (env.REVIEW_ACTIONS_ENABLED !== 'true') return json({ error: 'review_actions_disabled' }, 403);
+    if (request.headers.get('origin') !== url.origin || request.headers.get('content-type') !== 'application/json') return json({ error: 'invalid_request' }, 403);
+    const raw = await request.text();
+    if (raw.length > 2048) return json({ error: 'request_too_large' }, 413);
+    let body;
+    try { body = JSON.parse(raw); } catch { return json({ error: 'invalid_json' }, 400); }
+    if (!/^[a-f0-9]{64}$/.test(body.id || '') || !/^[a-f0-9]{64}$/.test(body.contentHash || '') || !['published', 'rejected'].includes(body.status)) return json({ error: 'invalid_review' }, 400);
+    const now = new Date().toISOString();
+    // Batch is transactional; the audit INSERT only sees the matching update.
+    const results = await env.DB.batch([
+      env.DB.prepare("UPDATE alerts SET status = ?, reviewed_at = ?, reviewed_by = 'admin', updated_at = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE NULL END WHERE id = ? AND content_hash = ? AND status = 'pending_review'").bind(body.status, now, now, body.status, now, body.id, body.contentHash),
+      env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) SELECT ?, ?, 'admin', ?, ? WHERE changes() = 1").bind(body.id, body.status === 'published' ? 'manually_published' : 'rejected', JSON.stringify({ contentHash: body.contentHash }), now)
+    ]);
+    return results[0].meta.changes === 1 ? json({ ok: true }) : json({ error: 'changed_or_already_reviewed' }, 409);
   }
   return json({ error: 'not_found' }, 404);
 }
 
 async function updateSourceState(env, sourceKey, etag, lastModified, now, error) {
-  await env.DB.prepare(`INSERT INTO source_state (source_key, etag, last_modified, last_fetched_at, last_success_at, last_error) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(source_key) DO UPDATE SET etag = excluded.etag, last_modified = excluded.last_modified, last_fetched_at = excluded.last_fetched_at, last_success_at = excluded.last_success_at, last_error = excluded.last_error`).bind(sourceKey, etag, lastModified, now, error ? null : now, error).run();
+  await env.DB.prepare(`INSERT INTO source_state (source_key, etag, last_modified, last_fetched_at, last_success_at, last_error) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(source_key) DO UPDATE SET etag = COALESCE(excluded.etag, source_state.etag), last_modified = COALESCE(excluded.last_modified, source_state.last_modified), last_fetched_at = excluded.last_fetched_at, last_success_at = COALESCE(excluded.last_success_at, source_state.last_success_at), last_error = excluded.last_error`).bind(sourceKey, etag, lastModified, now, error ? null : now, error).run();
 }
 
 async function recordSourceFailure(env, sourceKey, error) {
@@ -135,4 +158,8 @@ async function audit(env, alertId, action, actor, detail) {
 
 function json(body, status = 200, headers = JSON_HEADERS) {
   return new Response(JSON.stringify(body), { status, headers });
+}
+
+function html(body) {
+  return new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" } });
 }

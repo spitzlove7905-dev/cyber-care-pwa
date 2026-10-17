@@ -8,6 +8,9 @@ This is an independent Cloudflare Worker for the security-alert pipeline. It doe
 * The Worker checks it on a 15-minute Cron Trigger with conditional HTTP requests (`ETag` / `Last-Modified`).
 * It uses deterministic rules only. There is no AI generation, GPU work, or Mini-PC runtime dependency.
 * `AUTO_PUBLISH_ENABLED` is false unless explicitly created as the string `true` in Worker secrets. The default outcome is `pending_review`.
+* `/admin/` provides a review screen. API access requires `ADMIN_API_TOKEN`; the browser keeps it only in memory. Review writes additionally require `REVIEW_ACTIONS_ENABLED=true` and a same-origin JSON request. Keep review writes disabled until administrator access protection has been configured and verified.
+* `/alerts` is the standalone public bulletin page, showing only published records. It can be linked from Cyber Care after preview review.
+* Already reviewed records are frozen during ingestion in this phase; corrections to published bulletins require a separate revision workflow before production publication is enabled.
 * To keep scheduled work small, the initial CISA import considers the previous 30 days only. Later checks consider records added since the last successful run, and unchanged records do not write to D1.
 * Public endpoints return only rows with `status = published`. Pending candidates cannot be reached from the public API.
 
