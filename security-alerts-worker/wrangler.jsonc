@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cyber-care-security-alerts",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-09",
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cyber-care-security-alerts",
+      "database_id": "REPLACE_AFTER_CREATING_D1"
+    }
+  ]
+}

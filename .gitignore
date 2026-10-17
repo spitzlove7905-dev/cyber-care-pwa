@@ -1,0 +1,4 @@
+# Local-only Worker configuration. Never commit credentials.
+security-alerts-worker/.dev.vars
+security-alerts-worker/.wrangler/
+

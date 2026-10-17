@@ -1,0 +1,4 @@
+# Copy to .dev.vars only for local development. Use Cloudflare Worker Secrets in production.
+# ADMIN_API_TOKEN=replace-with-a-long-random-local-value
+# AUTO_PUBLISH_ENABLED=false
+
