@@ -1,4 +1,4 @@
-import { SOURCES, candidateFromKev, publicationDecision, sha256 } from './policy.js';
+import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKevRecord } from './policy.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const PUBLIC_CACHE_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300' };
@@ -45,6 +45,7 @@ async function ingestCisaKev(env, source) {
   if (!Array.isArray(payload.vulnerabilities)) throw new Error('Unexpected CISA KEV response');
   const autoPublishEnabled = env.AUTO_PUBLISH_ENABLED === 'true';
   for (const raw of payload.vulnerabilities) {
+    if (!shouldMonitorKevRecord(raw, savedState?.last_success_at, new Date(now))) continue;
     const candidate = candidateFromKev(raw);
     if (candidate) await upsertCandidate(env, source, candidate, autoPublishEnabled, now);
   }
@@ -63,6 +64,7 @@ async function upsertCandidate(env, source, candidate, autoPublishEnabled, now) 
   const id = await sha256(candidate.eventKey);
   const existing = await env.DB.prepare('SELECT id, content_hash, status FROM alerts WHERE event_key = ?').bind(candidate.eventKey).first();
   const desiredStatus = existing?.status === 'published' ? 'published' : decision.status;
+  if (existing?.content_hash === contentHash && existing.status === desiredStatus) return;
   const publishedAt = desiredStatus === 'published' ? now : null;
 
   await env.DB.prepare(`

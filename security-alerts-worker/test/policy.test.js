@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { candidateFromKev, publicationDecision, scoreCandidate } from '../src/policy.js';
+import { candidateFromKev, publicationDecision, scoreCandidate, shouldMonitorKevRecord } from '../src/policy.js';
 
 const KEV_ITEM = {
   cveID: 'CVE-2026-12345',
@@ -33,4 +33,12 @@ test('insufficient evidence never becomes publication eligible', () => {
 test('malformed or incomplete feed records are rejected before persistence', () => {
   assert.equal(candidateFromKev({ ...KEV_ITEM, cveID: 'not-a-cve' }), null);
   assert.equal(candidateFromKev({ ...KEV_ITEM, requiredAction: '' }), null);
+});
+
+test('monitoring window limits initial and repeat KEV processing', () => {
+  const now = new Date('2026-10-17T12:00:00.000Z');
+  assert.equal(shouldMonitorKevRecord({ dateAdded: '2026-09-18' }, null, now), true);
+  assert.equal(shouldMonitorKevRecord({ dateAdded: '2026-09-16' }, null, now), false);
+  assert.equal(shouldMonitorKevRecord({ dateAdded: '2026-10-16' }, '2026-10-16T23:55:00.000Z', now), true);
+  assert.equal(shouldMonitorKevRecord({ dateAdded: '2026-10-15' }, '2026-10-16T23:55:00.000Z', now), false);
 });

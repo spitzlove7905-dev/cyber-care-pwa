@@ -9,6 +9,19 @@ export const SOURCES = Object.freeze([
   })
 ]);
 
+/**
+ * The KEV feed is a historical catalogue. A critical-alert monitor only needs
+ * newly added records (plus records from the day before a short outage), not a
+ * full catalogue rewrite on every scheduled run.
+ */
+export function shouldMonitorKevRecord(record, lastSuccessfulFetchAt, now = new Date(), initialLookbackDays = 30) {
+  if (!record?.dateAdded || !/^\d{4}-\d{2}-\d{2}$/.test(record.dateAdded)) return false;
+  const cutoff = lastSuccessfulFetchAt
+    ? new Date(lastSuccessfulFetchAt).toISOString().slice(0, 10)
+    : new Date(now.getTime() - initialLookbackDays * 86_400_000).toISOString().slice(0, 10);
+  return record.dateAdded >= cutoff;
+}
+
 export function cleanText(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }

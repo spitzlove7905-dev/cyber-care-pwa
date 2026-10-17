@@ -8,6 +8,7 @@ This is an independent Cloudflare Worker for the security-alert pipeline. It doe
 * The Worker checks it on a 15-minute Cron Trigger with conditional HTTP requests (`ETag` / `Last-Modified`).
 * It uses deterministic rules only. There is no AI generation, GPU work, or Mini-PC runtime dependency.
 * `AUTO_PUBLISH_ENABLED` is false unless explicitly created as the string `true` in Worker secrets. The default outcome is `pending_review`.
+* To keep scheduled work small, the initial CISA import considers the previous 30 days only. Later checks consider records added since the last successful run, and unchanged records do not write to D1.
 * Public endpoints return only rows with `status = published`. Pending candidates cannot be reached from the public API.
 
 ## Local verification
