@@ -12,7 +12,7 @@ function card(a) {
 }
 `;
 
-export const alertsPage = shell('重大サイバーセキュリティ速報', `<label for="alert-language">言語 / Language</label><select id="alert-language"><option value="ja">日本語</option><option value="en">English</option></select><p id="intro"></p><p id="message" role="status"></p><main id="list"></main><footer id="about"></footer>`, '(' + publicPageScript.toString() + ')();');
+export const alertsPage = shell('重大サイバーセキュリティ速報', `<label for="alert-language">言語 / Language</label><select id="alert-language"><option value="ja">日本語</option><option value="en">English</option></select><p id="intro"></p><p id="message" role="status"></p><main id="list"></main><footer id="about"></footer>`, publicPageScript);
 
 export const adminPage = shell('速報の承認待ち', `<p>公式の対象・影響範囲・対処を確認してから判断してください。取得原文は英語のまま表示します。</p><section><p>管理者ログインで認証済みです。共有端末では利用後にログアウトしてください。</p><button id="load">承認待ちを読み込む</button><button id="logout">ログアウト</button></section><p id="message" role="status"></p><main id="list"></main>`, renderHelpers + `
 let enabled=false; let bulkBusy=false;

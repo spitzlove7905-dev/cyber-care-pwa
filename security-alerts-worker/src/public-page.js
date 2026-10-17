@@ -1,5 +1,5 @@
-// Serialized into HTML. Keep this function independent of module globals.
-export function publicPageScript() {
+// Raw browser script prevents the Worker bundler from injecting helper calls.
+export const publicPageScript = String.raw`(() => {
  const copy={
   ja:{heading:'重大サイバーセキュリティ速報',back:'Cyber Careへ',intro:'公式情報を確認した速報です。対象製品・バージョンと対処方法は公式の案内で確認してください。',loading:'読み込み中…',empty:'現在、公開済みの速報はありません。安全が保証されるという意味ではありません。',error:'速報を取得できませんでした。時間をおいて再度確認してください。',action:'対処の案内',source:'CISA公式情報を確認',original:'英語の公式原文を確認',date:'公開日時',share:'この速報のリンク',about:'Cyber Careについて',description:'Cyber Careは、情報漏えいや不正利用が心配なとき、次の行動を整理し、記録や相談文を端末内で作るための支援ツールです。',open:'Cyber Careを開く'},
   en:{heading:'Critical cybersecurity alerts',back:'Go to Cyber Care',intro:'Advisories based on verified official sources. Check affected products, versions and mitigation steps in the official guidance.',loading:'Loading…',empty:'No published alerts at present. This does not guarantee safety.',error:'Unable to load alerts. Please try again later.',action:'Recommended action',source:'Read the official CISA source',original:'Read the original English advisory',date:'Published',share:'Link to this alert',about:'About Cyber Care',description:'Cyber Care helps you organize next steps when you are concerned about a data leak or unauthorized use, and prepare notes and consultation drafts stored on your device.',open:'Open Cyber Care'}
@@ -26,4 +26,4 @@ export function publicPageScript() {
  }
  selector.onchange=()=>{lang=selector.value;try{localStorage.setItem('cyber-care-alert-language',lang);}catch{}const u=new URL(location.href);u.searchParams.set('lang',lang);history.replaceState(null,'',u);render();};render();
  const id=query.get('id');fetch(id?'/v1/alerts/'+encodeURIComponent(id):'/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{alerts=id?[data.alert]:data.alerts;loading=false;render();}).catch(()=>{loading=false;failed=true;render();});
-}
+})();`;
