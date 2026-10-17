@@ -23,4 +23,15 @@ test('public list excludes pending records in its database query', async () => {
   const DB = { prepare(sql) { assert.match(sql, /WHERE status = 'published'/); return { all: async () => ({ results: [] }) }; } };
   const response = await worker.fetch(new Request('https://alerts.example/v1/alerts'), { DB });
   assert.deepEqual(await response.json(), { alerts: [] });
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+});
+
+test('withdrawal only changes published records and writes an audit event in the same batch', async () => {
+  const statements = [];
+  const DB = { prepare(sql) { return { bind(...args) { const statement = { sql, args }; statements.push(statement); return statement; } }; }, async batch(batch) { assert.equal(batch.length, 2); return [{ meta: { changes: 1 } }, { meta: { changes: 1 } }]; } };
+  const req = new Request(endpoint, { method: 'POST', headers: { authorization: 'Bearer test-only', origin: 'https://alerts.example', 'content-type': 'application/json' }, body: JSON.stringify({ ...body, status: 'withdrawn' }) });
+  const result = await worker.fetch(req, { DB, ADMIN_API_TOKEN: 'test-only', REVIEW_ACTIONS_ENABLED: 'true' });
+  assert.equal(result.status, 200);
+  assert.equal(statements[0].args.at(-1), 'published');
+  assert.equal(statements[1].args[1], 'withdrawn');
 });

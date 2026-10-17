@@ -21,12 +21,14 @@ export const adminPage = shell('速報の承認待ち', `<p>公式の対象・�
 let token=''; let enabled=false;
 const message=document.getElementById('message'); const list=document.getElementById('list');
 async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(r.status===401?'認証できませんでした。':r.status===409?'内容が更新されたか、審査済みです。一覧を読み直してください。':'操作できませんでした。設定や接続を確認してください。');return r.json()}
-async function load() {
+async function load(path='/admin/pending') {
  list.replaceChildren(); message.textContent='読み込み中…';
- try {enabled=(await api('/admin/status')).reviewActionsEnabled;const data=await api('/admin/pending');message.textContent=data.alerts.length+'件（最大100件）'+(enabled?'':'。現在は確認専用です。公開・却下操作は無効です。');
- for(const a of data.alerts) {const e=card(a);for(const [label,status] of [['公開を承認','published'],['却下','rejected']]) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load()}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
+ try {enabled=(await api('/admin/status')).reviewActionsEnabled;const data=await api(path);message.textContent=data.alerts.length+'件（最大100件）'+(enabled?'':'。現在は確認専用です。公開・却下・取り下げ操作は無効です。');
+ for(const a of data.alerts) {const e=card(a);for(const [label,status] of (path==='/admin/published'?[['公開を取り下げる','withdrawn']]:[['公開を承認','published'],['却下','rejected']])) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load(path)}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
  }catch(err){message.textContent=err.message}
 }
 document.getElementById('load').onclick=()=>{token=document.getElementById('token').value;document.getElementById('token').value='';load()};
 document.getElementById('logout').onclick=()=>{token='';list.replaceChildren();document.getElementById('token').value='';message.textContent='終了しました。'};
+const publishedButton=text('button','公開済みを確認');publishedButton.onclick=()=>load('/admin/published');document.getElementById('load').after(publishedButton);
+const auditButton=text('button','操作履歴を確認');auditButton.onclick=async()=>{list.replaceChildren();try{const data=await api('/admin/audit');message.textContent='最近の操作（最大100件）';for(const event of data.events)list.append(text('p',event.created_at+' / '+event.action+' / '+event.actor))}catch(err){message.textContent=err.message}};publishedButton.after(auditButton);
 `);

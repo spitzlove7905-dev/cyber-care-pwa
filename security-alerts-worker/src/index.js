@@ -2,7 +2,8 @@ import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKe
 import { adminPage, alertsPage } from './pages.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
-const PUBLIC_CACHE_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300' };
+// Withdrawal must become visible immediately, including to browser clients.
+const PUBLIC_CACHE_HEADERS = JSON_HEADERS;
 
 export default {
   async fetch(request, env) {
@@ -119,6 +120,14 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   if (!env.ADMIN_API_TOKEN || request.headers.get('authorization') !== `Bearer ${env.ADMIN_API_TOKEN}`) return json({ error: 'unauthorized' }, 401);
   if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true' });
+  if (request.method === 'GET' && url.pathname === '/admin/published') {
+    const result = await env.DB.prepare("SELECT * FROM alerts WHERE status = 'published' ORDER BY published_at DESC LIMIT 100").all();
+    return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })) });
+  }
+  if (request.method === 'GET' && url.pathname === '/admin/audit') {
+    const result = await env.DB.prepare('SELECT alert_id, action, actor, created_at FROM audit_events ORDER BY id DESC LIMIT 100').all();
+    return json({ events: result.results });
+  }
   if (request.method === 'GET' && url.pathname === '/admin/pending') {
     const result = await env.DB.prepare(`SELECT id, cve_id, title, summary, recommended_action, evidence_json, severity_score, source_url, source_updated_at, created_at, content_hash FROM alerts WHERE status = 'pending_review' ORDER BY severity_score DESC, created_at DESC LIMIT 100`).all();
     return json({ alerts: result.results.map(row => ({ ...publicAlert(row), contentHash: row.content_hash })) });
@@ -130,12 +139,13 @@ async function handleAdmin(request, env, url) {
     if (raw.length > 2048) return json({ error: 'request_too_large' }, 413);
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: 'invalid_json' }, 400); }
-    if (!/^[a-f0-9]{64}$/.test(body.id || '') || !/^[a-f0-9]{64}$/.test(body.contentHash || '') || !['published', 'rejected'].includes(body.status)) return json({ error: 'invalid_review' }, 400);
+    if (!/^[a-f0-9]{64}$/.test(body.id || '') || !/^[a-f0-9]{64}$/.test(body.contentHash || '') || !['published', 'rejected', 'withdrawn'].includes(body.status)) return json({ error: 'invalid_review' }, 400);
     const now = new Date().toISOString();
+    const previousStatus = body.status === 'withdrawn' ? 'published' : 'pending_review';
     // Batch is transactional; the audit INSERT only sees the matching update.
     const results = await env.DB.batch([
-      env.DB.prepare("UPDATE alerts SET status = ?, reviewed_at = ?, reviewed_by = 'admin', updated_at = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE NULL END WHERE id = ? AND content_hash = ? AND status = 'pending_review'").bind(body.status, now, now, body.status, now, body.id, body.contentHash),
-      env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) SELECT ?, ?, 'admin', ?, ? WHERE changes() = 1").bind(body.id, body.status === 'published' ? 'manually_published' : 'rejected', JSON.stringify({ contentHash: body.contentHash }), now)
+      env.DB.prepare("UPDATE alerts SET status = ?, reviewed_at = ?, reviewed_by = 'admin', updated_at = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE published_at END WHERE id = ? AND content_hash = ? AND status = ?").bind(body.status, now, now, body.status, now, body.id, body.contentHash, previousStatus),
+      env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) SELECT ?, ?, 'admin', ?, ? WHERE changes() = 1").bind(body.id, body.status === 'published' ? 'manually_published' : body.status, JSON.stringify({ contentHash: body.contentHash }), now)
     ]);
     return results[0].meta.changes === 1 ? json({ ok: true }) : json({ error: 'changed_or_already_reviewed' }, 409);
   }
