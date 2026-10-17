@@ -2,6 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSocialDraft, createBufferDraft } from '../src/social.js';
 import worker from '../src/index.js';
+import { adminPage } from '../src/pages.js';
+
+test('admin draft panel provides a separate single-bulletin reader link', () => {
+  assert.match(adminPage,/この速報の読者向けページを開く/);
+  assert.match(adminPage,/reader.href='\/alerts\?id='/);
+  assert.match(adminPage,/reader.rel='noopener noreferrer'/);
+  assert.match(adminPage,/この速報一件だけを開きます/);
+  const script=adminPage.match(/<script>([\s\S]*)<\/script>/)[1];
+  assert.doesNotThrow(()=>new Function(script));
+});
 
 const row = { id:'a'.repeat(64), status:'published', cve_id:'CVE-2026-12345', title:'【重要】Example Productの脆弱性（CVE-2026-12345）', summary:'Official description.', recommended_action:'Apply vendor mitigations.' };
 

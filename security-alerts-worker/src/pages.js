@@ -25,9 +25,11 @@ function socialPreview(a,e) {
   panel.hidden=false;panel.replaceChildren(text('p','確認用の文面です。Bufferへの送信・SNS公開は行いません。'));
   const select=document.createElement('select');select.setAttribute('aria-label','SNS下書きの言語');
   for(const [value,label] of [['ja','日本語'],['en','English']]){const option=text('option',label);option.value=value;select.append(option)}
-  panel.append(select);const drafts=document.createElement('div');panel.append(drafts);
+  panel.append(select);
+  const reader=text('a','この速報の読者向けページを開く');reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang=ja';reader.target='_blank';reader.rel='noopener noreferrer';reader.style.display='inline-block';reader.style.padding='12px';panel.append(reader,text('p','このリンクは、この速報一件だけを開きます。下に続く管理用の一覧とは別のページです。'));
+  const drafts=document.createElement('div');panel.append(drafts);
   let version=0;
-  async function refresh(){const current=++version;drafts.replaceChildren(text('p','読み込み中…'));try{
+  async function refresh(){const current=++version;reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang='+select.value;drafts.replaceChildren(text('p','読み込み中…'));try{
    const data=await api('/admin/social-drafts?id='+encodeURIComponent(a.id)+'&lang='+select.value);if(current!==version)return;drafts.replaceChildren();
    for(const draft of data.drafts){drafts.append(text('h3',draft.platform==='x'?'X':'Threads'));const area=document.createElement('textarea');area.readOnly=true;area.rows=9;area.style.width='100%';area.value=draft.text;area.setAttribute('aria-label',draft.platform+' 投稿文');drafts.append(area)}
   }catch(err){if(current===version)drafts.replaceChildren(text('p',err.message))}}
