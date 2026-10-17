@@ -19,12 +19,27 @@ export const adminPage = shell('速報の承認待ち', `<p>公式の対象・�
 let enabled=false; let bulkBusy=false;
 const message=document.getElementById('message'); const list=document.getElementById('list');
 async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'content-type':'application/json'}:{},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(r.status===401?'ログインの有効期限が切れました。画面を再読み込みしてください。':r.status===409?'内容が更新されたか、審査済みです。一覧を読み直してください。':'操作できませんでした。設定や接続を確認してください。');return r.json()}
+function socialPreview(a,e) {
+ const button=text('button','SNS用の下書きを確認');const panel=document.createElement('section');panel.hidden=true;
+ button.onclick=async()=>{
+  panel.hidden=false;panel.replaceChildren(text('p','確認用の文面です。Bufferへの送信・SNS公開は行いません。'));
+  const select=document.createElement('select');select.setAttribute('aria-label','SNS下書きの言語');
+  for(const [value,label] of [['ja','日本語'],['en','English']]){const option=text('option',label);option.value=value;select.append(option)}
+  panel.append(select);const drafts=document.createElement('div');panel.append(drafts);
+  let version=0;
+  async function refresh(){const current=++version;drafts.replaceChildren(text('p','読み込み中…'));try{
+   const data=await api('/admin/social-drafts?id='+encodeURIComponent(a.id)+'&lang='+select.value);if(current!==version)return;drafts.replaceChildren();
+   for(const draft of data.drafts){drafts.append(text('h3',draft.platform==='x'?'X':'Threads'));const area=document.createElement('textarea');area.readOnly=true;area.rows=9;area.style.width='100%';area.value=draft.text;area.setAttribute('aria-label',draft.platform+' 投稿文');drafts.append(area)}
+  }catch(err){if(current===version)drafts.replaceChildren(text('p',err.message))}}
+  select.onchange=refresh;await refresh();
+ };e.append(button,panel);
+}
 async function load(path='/admin/pending') {
  if(bulkBusy)return;
  bulkButton.disabled=true;
  list.replaceChildren(); message.textContent='読み込み中…';
  try {enabled=(await api('/admin/status')).reviewActionsEnabled;const data=await api(path);message.textContent=data.alerts.length+'件（最大100件）'+(enabled?'':'。現在は確認専用です。公開・却下・取り下げ操作は無効です。');
- for(const a of data.alerts) {const e=card(a);for(const [label,status] of (path==='/admin/published'?[['公開を取り下げる','withdrawn']]:[['公開を承認','published'],['却下','rejected']])) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load(path)}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
+ for(const a of data.alerts) {const e=card(a);if(path==='/admin/published')socialPreview(a,e);for(const [label,status] of (path==='/admin/published'?[['公開を取り下げる','withdrawn']]:[['公開を承認','published'],['却下','rejected']])) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load(path)}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
  bulkButton.disabled=!enabled || path!=='/admin/pending' || data.alerts.length===0;
  }catch(err){message.textContent=err.message}
 }

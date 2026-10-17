@@ -2,6 +2,7 @@ import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKe
 import { adminPage, alertsPage } from './pages.js';
 import { authenticateAdmin } from './auth.js';
 import { localizedBulletin } from './localization.js';
+import { buildSocialDraft } from './social.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -126,6 +127,15 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if (request.method === 'GET' && url.pathname === '/admin/social-drafts') {
+    const id = url.searchParams.get('id') || '';
+    const language = url.searchParams.get('lang') || 'ja';
+    if (!/^[a-f0-9]{64}$/.test(id) || !['ja','en'].includes(language)) return json({ error: 'invalid_request' }, 400);
+    const row = await env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND status = 'published'").bind(id).first();
+    if (!row) return json({ error: 'not_found' }, 404);
+    // Read-only preview. This route never calls Buffer or changes publication state.
+    return json({ drafts: ['x','threads'].map(platform => buildSocialDraft(row, platform, language)), sendingEnabled: false });
+  }
   if (request.method === 'GET' && url.pathname === '/admin/preview') return html(alertsPage);
   if (request.method === 'GET' && url.pathname.startsWith('/admin/preview-data/')) {
     const id = url.pathname.slice('/admin/preview-data/'.length);
