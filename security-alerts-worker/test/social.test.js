@@ -5,7 +5,7 @@ import worker from '../src/index.js';
 import { adminPage } from '../src/pages.js';
 
 test('admin draft panel provides a separate single-bulletin reader link', () => {
-  assert.match(adminPage,/この速報の読者向けページを開く/);
+  assert.match(adminPage,/text\('a','対策を見る'\)/);
   assert.match(adminPage,/reader.href='\/alerts\?id='/);
   assert.match(adminPage,/reader.rel='noopener noreferrer'/);
   assert.match(adminPage,/この速報一件だけを開きます/);
