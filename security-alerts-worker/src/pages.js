@@ -1,5 +1,7 @@
 const shell = (title, body, script) => `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | Cyber Care</title><style>body{font-family:system-ui,sans-serif;max-width:850px;margin:auto;padding:24px;background:#f5f8fa;color:#172e3d}a{color:#005e88}article,section{background:white;border:1px solid #b9cbd5;border-radius:12px;padding:20px;margin:20px 0}button,input{font:inherit;padding:12px;margin:4px;max-width:90%}button{cursor:pointer}button:disabled{cursor:default}h1{font-size:1.6rem}p{line-height:1.7}label{display:block}#message{min-height:2em}small{color:#435968}</style><header><a href="https://cyber-care-pwa.pages.dev/">Cyber Careへ戻る</a><h1>${title}</h1></header>${body}<script>${script}</script></html>`;
 
+import { publicPageScript } from './public-page.js';
+
 const renderHelpers = `
 function text(tag, value) { const e=document.createElement(tag); e.textContent=value || ''; return e; }
 function card(a) {
@@ -10,12 +12,7 @@ function card(a) {
 }
 `;
 
-export const alertsPage = shell('重大サイバーセキュリティ速報', `<p>公式情報を確認した速報を掲載します。対象製品・バージョンと対処方法は必ず公式の案内で確認してください。</p><p id="message" role="status">読み込み中…</p><main id="list"></main>`, renderHelpers + `
-fetch('/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{
- document.getElementById('message').textContent=data.alerts.length?'公開済みの速報':'現在、公開済みの速報はありません。安全が保証されるという意味ではありません。';
- for(const a of data.alerts) {const e=card(a);e.append(text('p','公開日時: '+a.publishedAt));document.getElementById('list').append(e)}
-}).catch(()=>{document.getElementById('message').textContent='速報を取得できませんでした。時間をおいて再度確認してください。'});
-`);
+export const alertsPage = shell('重大サイバーセキュリティ速報', `<label for="alert-language">言語 / Language</label><select id="alert-language"><option value="ja">日本語</option><option value="en">English</option></select><p id="intro"></p><p id="message" role="status"></p><main id="list"></main><footer id="about"></footer>`, '(' + publicPageScript.toString() + ')();');
 
 export const adminPage = shell('速報の承認待ち', `<p>公式の対象・影響範囲・対処を確認してから判断してください。取得原文は英語のまま表示します。</p><section><p>管理者ログインで認証済みです。共有端末では利用後にログアウトしてください。</p><button id="load">承認待ちを読み込む</button><button id="logout">ログアウト</button></section><p id="message" role="status"></p><main id="list"></main>`, renderHelpers + `
 let enabled=false; let bulkBusy=false;

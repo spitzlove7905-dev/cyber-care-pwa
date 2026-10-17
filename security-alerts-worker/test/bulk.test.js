@@ -5,7 +5,7 @@ import { adminPage } from '../src/pages.js';
 
 const snapshot = '2026-10-17T12:00:00.000Z';
 test('bulk queue is paginated beyond the first 100 and bound to its start time', async () => {
-  const rows = Array.from({length:101}, (_, i) => ({id:i.toString(16).padStart(64,'0'), evidence_json:'[]',content_hash:'b'.repeat(64)}));
+  const rows = Array.from({length:101}, (_, i) => ({id:i.toString(16).padStart(64,'0'), title:'Example advisory', evidence_json:'[]',content_hash:'b'.repeat(64)}));
   const DB = { prepare(sql) {
     assert.match(sql, /status = 'pending_review' AND created_at <= \? AND id > \?/);
     return {bind(time, cursor) {assert.equal(time,snapshot);return {all:async()=>({results: rows.filter(row=>row.id>cursor).slice(0,100)})};}};

@@ -1,6 +1,7 @@
 import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKevRecord } from './policy.js';
 import { adminPage, alertsPage } from './pages.js';
 import { authenticateAdmin } from './auth.js';
+import { localizedBulletin } from './localization.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -119,7 +120,7 @@ async function getPublishedAlert(env, id) {
 }
 
 function publicAlert(row) {
-  return { id: row.id, cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at };
+  return { id: row.id, cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at, languages: localizedBulletin(row) };
 }
 
 async function handleAdmin(request, env, url) {
