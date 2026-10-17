@@ -126,6 +126,13 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if (request.method === 'GET' && url.pathname === '/admin/preview') return html(alertsPage);
+  if (request.method === 'GET' && url.pathname.startsWith('/admin/preview-data/')) {
+    const id = url.pathname.slice('/admin/preview-data/'.length);
+    if (!/^[a-f0-9]{64}$/.test(id)) return json({ error: 'invalid_id' }, 400);
+    const row = await env.DB.prepare('SELECT * FROM alerts WHERE id = ?').bind(id).first();
+    return row ? json({ alert: publicAlert(row) }) : json({ error: 'not_found' }, 404);
+  }
   if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true', serverTime: new Date().toISOString() });
   if (request.method === 'GET' && url.pathname === '/admin/published') {
     const result = await env.DB.prepare("SELECT * FROM alerts WHERE status = 'published' ORDER BY published_at DESC LIMIT 100").all();

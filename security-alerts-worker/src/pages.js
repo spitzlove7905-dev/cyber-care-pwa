@@ -8,6 +8,7 @@ function card(a) {
  const e=document.createElement('article');
  e.append(text('h2',a.title),text('p',a.summary),text('h3','公式の対処案内（原文）'),text('p',a.recommendedAction),text('p','判定根拠: '+a.evidence.join(' / ')),text('small','優先度スコア: '+a.severityScore+' / 100（CVSSではありません）'));
  const u=new URL(a.sourceUrl); if(u.protocol==='https:' && u.hostname==='www.cisa.gov') { const l=text('a','CISA公式情報を確認'); l.href=u.href; l.target='_blank'; l.rel='noopener noreferrer'; e.append(document.createElement('br'),l); }
+ const preview=text('a','日英の表示をプレビュー');preview.href='/admin/preview?id='+encodeURIComponent(a.id)+'&lang=ja';e.append(document.createElement('br'),preview);
  return e;
 }
 `;
