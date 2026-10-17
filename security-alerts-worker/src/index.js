@@ -1,5 +1,6 @@
 import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKevRecord } from './policy.js';
 import { adminPage, alertsPage } from './pages.js';
+import { authenticateAdmin } from './auth.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -8,7 +9,11 @@ const PUBLIC_CACHE_HEADERS = JSON_HEADERS;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === 'GET' && url.pathname === '/admin/') return html(adminPage);
+    if (url.pathname === '/admin') return Response.redirect(`${url.origin}/admin/`, 302);
+    if (request.method === 'GET' && url.pathname === '/admin/') {
+      if ((env.ACCESS_TEAM_DOMAIN || env.ACCESS_AUD) && !await authenticateAdmin(request, env)) return json({ error: 'unauthorized' }, 401);
+      return html(adminPage);
+    }
     if (request.method === 'GET' && url.pathname === '/alerts') return html(alertsPage);
     if (request.method === 'GET' && url.pathname === '/healthz') return json({ ok: true });
     if (request.method === 'GET' && url.pathname === '/v1/alerts') return listPublishedAlerts(env);
@@ -118,7 +123,8 @@ function publicAlert(row) {
 }
 
 async function handleAdmin(request, env, url) {
-  if (!env.ADMIN_API_TOKEN || request.headers.get('authorization') !== `Bearer ${env.ADMIN_API_TOKEN}`) return json({ error: 'unauthorized' }, 401);
+  const identity = await authenticateAdmin(request, env);
+  if (!identity) return json({ error: 'unauthorized' }, 401);
   if (request.method === 'GET' && url.pathname === '/admin/status') return json({ reviewActionsEnabled: env.REVIEW_ACTIONS_ENABLED === 'true' });
   if (request.method === 'GET' && url.pathname === '/admin/published') {
     const result = await env.DB.prepare("SELECT * FROM alerts WHERE status = 'published' ORDER BY published_at DESC LIMIT 100").all();
@@ -144,8 +150,8 @@ async function handleAdmin(request, env, url) {
     const previousStatus = body.status === 'withdrawn' ? 'published' : 'pending_review';
     // Batch is transactional; the audit INSERT only sees the matching update.
     const results = await env.DB.batch([
-      env.DB.prepare("UPDATE alerts SET status = ?, reviewed_at = ?, reviewed_by = 'admin', updated_at = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE published_at END WHERE id = ? AND content_hash = ? AND status = ?").bind(body.status, now, now, body.status, now, body.id, body.contentHash, previousStatus),
-      env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) SELECT ?, ?, 'admin', ?, ? WHERE changes() = 1").bind(body.id, body.status === 'published' ? 'manually_published' : body.status, JSON.stringify({ contentHash: body.contentHash }), now)
+      env.DB.prepare("UPDATE alerts SET status = ?, reviewed_at = ?, reviewed_by = ?, updated_at = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE published_at END WHERE id = ? AND content_hash = ? AND status = ?").bind(body.status, now, identity.actor, now, body.status, now, body.id, body.contentHash, previousStatus),
+      env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) SELECT ?, ?, ?, ?, ? WHERE changes() = 1").bind(body.id, body.status === 'published' ? 'manually_published' : body.status, identity.actor, JSON.stringify({ contentHash: body.contentHash }), now)
     ]);
     return results[0].meta.changes === 1 ? json({ ok: true }) : json({ error: 'changed_or_already_reviewed' }, 409);
   }

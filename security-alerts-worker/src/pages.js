@@ -17,18 +17,19 @@ fetch('/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=
 }).catch(()=>{document.getElementById('message').textContent='速報を取得できませんでした。時間をおいて再度確認してください。'});
 `);
 
-export const adminPage = shell('速報の承認待ち', `<p>公式の対象・影響範囲・対処を確認してから判断してください。取得原文は英語のまま表示します。</p><section><label for="token">管理用トークン</label><input id="token" type="password" autocomplete="off"><button id="load">一覧を読み込む</button><button id="logout">終了</button><p>トークンはこの画面のメモリだけで使用します。共有端末では終了ボタンを押してください。</p></section><p id="message" role="status"></p><main id="list"></main>`, renderHelpers + `
-let token=''; let enabled=false;
+export const adminPage = shell('速報の承認待ち', `<p>公式の対象・影響範囲・対処を確認してから判断してください。取得原文は英語のまま表示します。</p><section><p>管理者ログインで認証済みです。共有端末では利用後にログアウトしてください。</p><button id="load">承認待ちを読み込む</button><button id="logout">ログアウト</button></section><p id="message" role="status"></p><main id="list"></main>`, renderHelpers + `
+let enabled=false;
 const message=document.getElementById('message'); const list=document.getElementById('list');
-async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(r.status===401?'認証できませんでした。':r.status===409?'内容が更新されたか、審査済みです。一覧を読み直してください。':'操作できませんでした。設定や接続を確認してください。');return r.json()}
+async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'content-type':'application/json'}:{},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(r.status===401?'ログインの有効期限が切れました。画面を再読み込みしてください。':r.status===409?'内容が更新されたか、審査済みです。一覧を読み直してください。':'操作できませんでした。設定や接続を確認してください。');return r.json()}
 async function load(path='/admin/pending') {
  list.replaceChildren(); message.textContent='読み込み中…';
  try {enabled=(await api('/admin/status')).reviewActionsEnabled;const data=await api(path);message.textContent=data.alerts.length+'件（最大100件）'+(enabled?'':'。現在は確認専用です。公開・却下・取り下げ操作は無効です。');
  for(const a of data.alerts) {const e=card(a);for(const [label,status] of (path==='/admin/published'?[['公開を取り下げる','withdrawn']]:[['公開を承認','published'],['却下','rejected']])) {const b=text('button',label);b.disabled=!enabled;b.onclick=async()=>{if(!confirm(a.title+' を'+label+'しますか？'+(status==='published'?'一般の人が閲覧できるようになります。':'')))return; b.disabled=true;try{await api('/admin/review',{id:a.id,contentHash:a.contentHash,status});await load(path)}catch(err){message.textContent=err.message}};e.append(b)}list.append(e)}
  }catch(err){message.textContent=err.message}
 }
-document.getElementById('load').onclick=()=>{token=document.getElementById('token').value;document.getElementById('token').value='';load()};
-document.getElementById('logout').onclick=()=>{token='';list.replaceChildren();document.getElementById('token').value='';message.textContent='終了しました。'};
+document.getElementById('load').onclick=()=>load();
+document.getElementById('logout').onclick=()=>{list.replaceChildren();location.assign('/cdn-cgi/access/logout');};
 const publishedButton=text('button','公開済みを確認');publishedButton.onclick=()=>load('/admin/published');document.getElementById('load').after(publishedButton);
 const auditButton=text('button','操作履歴を確認');auditButton.onclick=async()=>{list.replaceChildren();try{const data=await api('/admin/audit');message.textContent='最近の操作（最大100件）';for(const event of data.events)list.append(text('p',event.created_at+' / '+event.action+' / '+event.actor))}catch(err){message.textContent=err.message}};publishedButton.after(auditButton);
+load();
 `);
