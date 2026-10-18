@@ -2,4 +2,5 @@
 security-alerts-worker/.dev.vars
 security-alerts-worker/.wrangler/
 security-alerts-worker/node_modules/
+security-alerts-worker/.npm-cache/
 
