@@ -3,6 +3,7 @@ import { adminPage, alertsPage } from './pages.js';
 import { authenticateAdmin } from './auth.js';
 import { localizedBulletin } from './localization.js';
 import { buildSocialDraft } from './social.js';
+import { checkBufferConnection } from './buffer-connection.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -127,6 +128,15 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if (request.method === 'POST' && url.pathname === '/admin/social-connection') {
+    if (request.headers.get('origin') !== url.origin || request.headers.get('content-type') !== 'application/json') return json({ error: 'invalid_request' }, 403);
+    if ((await request.text()).length > 32) return json({ error: 'request_too_large' }, 413);
+    try { return json(await checkBufferConnection(env)); }
+    catch (error) {
+      const safe = ['buffer_auth_failed', 'buffer_rate_limited', 'buffer_organization_selection_required'];
+      return json({ error: safe.includes(error.message) ? error.message : 'buffer_connection_failed' }, 502);
+    }
+  }
   if (request.method === 'GET' && url.pathname === '/admin/social-drafts') {
     const id = url.searchParams.get('id') || '';
     const language = url.searchParams.get('lang') || 'ja';

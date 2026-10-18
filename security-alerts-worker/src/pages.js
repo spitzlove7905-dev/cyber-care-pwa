@@ -68,6 +68,9 @@ bulkButton.onclick=async()=>{
 document.getElementById('load').onclick=()=>load();
 document.getElementById('logout').onclick=()=>{list.replaceChildren();location.assign('/cdn-cgi/access/logout');};
 const publishedButton=text('button','公開済みを確認');publishedButton.onclick=()=>load('/admin/published');document.getElementById('load').after(publishedButton);
+const connectionButton=text('button','Buffer接続を確認（投稿しません）');publishedButton.after(connectionButton);
+const connectionResult=text('p','');connectionResult.setAttribute('role','status');connectionButton.after(connectionResult);
+connectionButton.onclick=async()=>{connectionButton.disabled=true;connectionResult.textContent='接続確認中…';try{const data=await api('/admin/social-connection',{});connectionResult.textContent=!data.configured?'Bufferの秘密キーが未設定です。':data.channels.length?'接続確認済み: '+data.channels.map(c=>(c.platform==='x'?'X':'Threads')+' / '+c.name+(c.queuePaused?'（予約キュー停止中）':'')).join('、')+'。SNS投稿はまだ無効です。':'キーは確認できましたが、X・Threadsの接続先が見つかりません。';}catch(err){connectionResult.textContent='Bufferの接続を確認できませんでした。キー・権限・利用制限を確認してください。';}finally{connectionButton.disabled=false}};
 const auditButton=text('button','操作履歴を確認');auditButton.onclick=async()=>{bulkButton.disabled=true;list.replaceChildren();try{const data=await api('/admin/audit');message.textContent='最近の操作（最大100件）';for(const event of data.events)list.append(text('p',event.created_at+' / '+event.action+' / '+event.actor))}catch(err){message.textContent=err.message}};publishedButton.after(auditButton);
 load();
 `);
