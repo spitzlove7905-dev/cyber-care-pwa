@@ -10,7 +10,7 @@ export function buildSocialDraft(row, platform, language = 'ja') {
   const link = `${ORIGIN}/alerts?id=${encodeURIComponent(row.id)}`;
   let text;
   if (platform === 'x') {
-    const tail = language === 'ja' ? `\n速報の詳細を見る（日本語 / English）\nCyber Care\n${link}` : `\nView alert details (日本語 / English)\nCyber Care\n${link}`;
+    const tail = language === 'ja' ? `\nCyber Care\n速報の詳細はこちら ↓\n${link}` : `\nCyber Care\nAlert details below ↓\n${link}`;
     const prefix = language === 'ja' ? '【セキュリティ速報】\n' : 'Security alert\n';
     // Preserve the complete CVE and link; shorten only the descriptive title.
     const suffix = `\n${row.cve_id || ''}${tail}`;
@@ -24,7 +24,7 @@ export function buildSocialDraft(row, platform, language = 'ja') {
     if (!twitterText.parseTweet(text).valid) throw new Error('post_too_long');
   } else if (platform === 'threads') {
     const prefix = language === 'ja' ? '【セキュリティ速報】\n' : 'Security alert\n';
-    const suffix = `\n${row.cve_id || ''}\n${language === 'ja' ? '速報の詳細を見る（日本語 / English）' : 'View alert details (日本語 / English)'}\nCyber Care\n${link}`;
+    const suffix = `\n${row.cve_id || ''}\nCyber Care\n${language === 'ja' ? '速報の詳細はこちら ↓' : 'Alert details below ↓'}\n${link}`;
     // Conservative total budget, including the full URL. Preserve CVE and link.
     const segments = [...new Intl.Segmenter(language, { granularity: 'grapheme' }).segment(content.title)].map(s => s.segment);
     let title = content.title;

@@ -30,6 +30,8 @@ test('X and Threads preserve identity, CVE, and Cyber Care in both languages', (
     assert.match(draft.text, /CVE-2026-12345/);
     assert.match(draft.text, /Cyber Care/);
     assert.ok(draft.text.endsWith(draft.link));
+    assert.doesNotMatch(draft.text,/日本語 \/ English/);
+    assert.match(draft.text,language==='ja'?/速報の詳細はこちら ↓\nhttps:/ : /Alert details below ↓\nhttps:/);
     if (platform === 'x') assert.ok(draft.weightedLength <= 280);
     else assert.ok(Array.from(draft.text).length <= 450);
   }
