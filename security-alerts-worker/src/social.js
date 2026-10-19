@@ -55,7 +55,7 @@ export async function createBufferDraft(text, channelId, token, fetcher = fetch)
   return id;
 }
 
-export async function sendSocialDraft(env, row, platform, language, actor) {
+export async function sendSocialDraft(env, row, platform, language, actor, fetcher = fetch) {
   if (env.BUFFER_SEND_ENABLED !== 'true' || !env.BUFFER_API_TOKEN) throw new Error('buffer_not_configured');
   const channels = JSON.parse(env.BUFFER_CHANNELS_JSON || '{}');
   const channelId = channels[platform];
@@ -68,7 +68,7 @@ export async function sendSocialDraft(env, row, platform, language, actor) {
   const claim = await env.DB.prepare("INSERT OR IGNORE INTO social_deliveries (alert_id, channel_id, platform, language, content_hash, status, created_at, updated_at) SELECT ?, ?, ?, ?, ?, 'sending', ?, ? WHERE (SELECT COUNT(*) FROM social_deliveries WHERE created_at >= ?) < 5").bind(row.id,channelId,platform,language,row.content_hash,now,now,cutoff).run();
   if (!claim.meta.changes) throw new Error('already_submitted_or_daily_limit');
   let bufferId;
-  try { bufferId = await createBufferDraft(draft.text,channelId,env.BUFFER_API_TOKEN); }
+  try { bufferId = await createBufferDraft(draft.text,channelId,env.BUFFER_API_TOKEN,fetcher); }
   catch {
     // A timeout can occur after Buffer accepted the draft. Never auto-retry.
     await env.DB.prepare("UPDATE social_deliveries SET status = 'needs_check', updated_at = ? WHERE alert_id = ? AND channel_id = ?").bind(now,row.id,channelId).run();
@@ -76,7 +76,15 @@ export async function sendSocialDraft(env, row, platform, language, actor) {
   }
   await env.DB.batch([
     env.DB.prepare("UPDATE social_deliveries SET status = 'draft_created', buffer_post_id = ?, updated_at = ? WHERE alert_id = ? AND channel_id = ?").bind(bufferId,now,row.id,channelId),
-    env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) VALUES (?, 'buffer_draft_created', ?, ?, ?)").bind(row.id,actor,JSON.stringify({platform,language}),now)
+    env.DB.prepare("INSERT INTO audit_events (alert_id, action, actor, detail_json, created_at) VALUES (?, 'buffer_draft_created', ?, ?, ?)").bind(row.id,actor,JSON.stringify({platform,language,text:draft.text,contentHash:row.content_hash}),now)
   ]);
   return { ok:true, status:'draft_created', platform, language };
+}
+
+// Additive, idempotent initialization matching migration 0002; no existing data is changed.
+export async function ensureSocialStorage(db) {
+  await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS social_deliveries (alert_id TEXT NOT NULL REFERENCES alerts(id), channel_id TEXT NOT NULL, platform TEXT NOT NULL CHECK(platform IN ('x','threads','facebook')), language TEXT NOT NULL CHECK(language IN ('ja','en')), content_hash TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('sending','draft_created','needs_check')), buffer_post_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(alert_id, channel_id))"),
+    db.prepare("CREATE INDEX IF NOT EXISTS social_deliveries_created ON social_deliveries(created_at)")
+  ]);
 }

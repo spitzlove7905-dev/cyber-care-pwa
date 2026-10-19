@@ -2,7 +2,7 @@ import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKe
 import { adminPage, alertsPage } from './pages.js';
 import { authenticateAdmin } from './auth.js';
 import { localizedBulletin } from './localization.js';
-import { buildSocialDraft } from './social.js';
+import { buildSocialDraft, sendSocialDraft, ensureSocialStorage } from './social.js';
 import { checkBufferConnection } from './buffer-connection.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
@@ -128,6 +128,27 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if (request.method === 'POST' && url.pathname === '/admin/social-draft') {
+    if (request.headers.get('origin') !== url.origin || request.headers.get('content-type') !== 'application/json') return json({ error: 'invalid_request' }, 403);
+    if (env.BUFFER_DRAFTS_ENABLED !== 'true' || !env.BUFFER_API_TOKEN) return json({ error: 'drafts_disabled' }, 403);
+    const raw = await request.text();
+    if (raw.length > 512) return json({ error: 'request_too_large' }, 413);
+    let body;
+    try { body = JSON.parse(raw); } catch { return json({ error: 'invalid_json' }, 400); }
+    if (!body || !/^[a-f0-9]{64}$/.test(body.id || '') || !/^[a-f0-9]{64}$/.test(body.contentHash || '') || !['x','threads'].includes(body.platform) || !['ja','en'].includes(body.language)) return json({ error: 'invalid_request' }, 400);
+    try {
+      const connection = await checkBufferConnection(env);
+      const matches = connection.channels.filter(channel => channel.platform === body.platform && channel.name === env.BUFFER_ALLOWED_ACCOUNT);
+      if (matches.length !== 1) return json({ error: 'channel_selection_required' }, 409);
+      const row = await env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND status = 'published' AND content_hash = ?").bind(body.id, body.contentHash).first();
+      if (!row) return json({ error: 'changed_or_not_published' }, 409);
+      await ensureSocialStorage(env.DB);
+      return json(await sendSocialDraft({ ...env, BUFFER_SEND_ENABLED: 'true', BUFFER_CHANNELS_JSON: JSON.stringify({ [body.platform]: matches[0].id }) }, row, body.platform, body.language, identity.actor));
+    } catch (error) {
+      const known = ['already_submitted_or_daily_limit','buffer_needs_manual_check','buffer_auth_failed','buffer_rate_limited'];
+      return json({ error: known.includes(error.message) ? error.message : 'buffer_draft_failed' }, error.message === 'already_submitted_or_daily_limit' ? 409 : 502);
+    }
+  }
   if (request.method === 'POST' && url.pathname === '/admin/social-connection') {
     if (request.headers.get('origin') !== url.origin || request.headers.get('content-type') !== 'application/json') return json({ error: 'invalid_request' }, 403);
     if ((await request.text()).length > 32) return json({ error: 'request_too_large' }, 413);
@@ -144,7 +165,7 @@ async function handleAdmin(request, env, url) {
     const row = await env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND status = 'published'").bind(id).first();
     if (!row) return json({ error: 'not_found' }, 404);
     // Read-only preview. This route never calls Buffer or changes publication state.
-    return json({ drafts: ['x','threads'].map(platform => buildSocialDraft(row, platform, language)), sendingEnabled: false });
+    return json({ drafts: ['x','threads'].map(platform => buildSocialDraft(row, platform, language)), sendingEnabled: false, draftsEnabled: env.BUFFER_DRAFTS_ENABLED === 'true' && Boolean(env.BUFFER_API_TOKEN) });
   }
   if (request.method === 'GET' && url.pathname === '/admin/preview') return html(alertsPage);
   if (request.method === 'GET' && url.pathname.startsWith('/admin/preview-data/')) {

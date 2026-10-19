@@ -22,7 +22,7 @@ async function api(path,body) {const r=await fetch(path,{method:body?'POST':'GET
 function socialPreview(a,e) {
  const button=text('button','SNS用の下書きを確認');const panel=document.createElement('section');panel.hidden=true;
  button.onclick=async()=>{
-  panel.hidden=false;panel.replaceChildren(text('p','確認用の文面です。Bufferへの送信・SNS公開は行いません。'));
+  panel.hidden=false;panel.replaceChildren(text('p','文面を確認して、必要なものだけBufferへ下書き保存できます。保存だけではSNSに公開されません。'));
   const select=document.createElement('select');select.setAttribute('aria-label','SNS下書きの言語');
   for(const [value,label] of [['ja','日本語'],['en','English']]){const option=text('option',label);option.value=value;select.append(option)}
   panel.append(select);
@@ -31,7 +31,9 @@ function socialPreview(a,e) {
   let version=0;
   async function refresh(){const current=++version;reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang='+select.value;drafts.replaceChildren(text('p','読み込み中…'));try{
    const data=await api('/admin/social-drafts?id='+encodeURIComponent(a.id)+'&lang='+select.value);if(current!==version)return;drafts.replaceChildren();
-   for(const draft of data.drafts){drafts.append(text('h3',draft.platform==='x'?'X':'Threads'));const area=document.createElement('textarea');area.readOnly=true;area.rows=9;area.style.width='100%';area.value=draft.text;area.setAttribute('aria-label',draft.platform+' 投稿文');drafts.append(area)}
+   for(const draft of data.drafts){drafts.append(text('h3',draft.platform==='x'?'X':'Threads'));const area=document.createElement('textarea');area.readOnly=true;area.rows=9;area.style.width='100%';area.value=draft.text;area.setAttribute('aria-label',draft.platform+' 投稿文');drafts.append(area);
+    if(data.draftsEnabled){const save=text('button',(draft.platform==='x'?'X':'Threads')+'へBuffer下書き保存（非公開）');const result=text('p','');result.setAttribute('role','status');save.onclick=async()=>{save.disabled=true;select.disabled=true;button.disabled=true;result.textContent='下書き保存中…';try{const response=await fetch('/admin/social-draft',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({id:a.id,contentHash:a.contentHash,platform:draft.platform,language:draft.language})});const outcome=await response.json();if(!response.ok){result.textContent=outcome.error==='already_submitted_or_daily_limit'?'送信済み、または24時間の上限に達しています。Bufferの下書きを確認してください。':'保存を確認できませんでした。再送せず、Bufferの下書きと操作履歴を確認してください。';return;}result.textContent='Bufferに下書きを保存しました。SNSには公開していません。';}catch(err){result.textContent='結果を確認できません。再送せず、Bufferで確認してください。';}finally{select.disabled=false;button.disabled=false}};drafts.append(save,result)}
+   }
   }catch(err){if(current===version)drafts.replaceChildren(text('p',err.message))}}
   select.onchange=refresh;await refresh();
  };e.append(button,panel);
