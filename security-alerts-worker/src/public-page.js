@@ -52,7 +52,7 @@ export const publicPageScript = String.raw`(() => {
   const footer=document.getElementById('about');footer.replaceChildren();if(!alerts.length)footer.append(about(t));
  }
  selector.onchange=()=>{lang=selector.value;try{localStorage.setItem('cyber-care-alert-language',lang);}catch{}const u=new URL(location.href);u.searchParams.set('lang',lang);history.replaceState(null,'',u);render();};render();
- const id=query.get('id');const preview=location.pathname==='/admin/preview';
+ const id=query.get('id');const digest=query.get('digest');const preview=location.pathname==='/admin/preview';
  if(preview){const notice=node('p','管理者用の下書きプレビュー / Private draft preview');document.querySelector('header').after(notice);}
- fetch(id?(preview?'/admin/preview-data/':'/v1/alerts/')+encodeURIComponent(id):'/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{alerts=id?[data.alert]:data.alerts;loading=false;render();}).catch(()=>{loading=false;failed=true;render();});
+ fetch(id?(preview?'/admin/preview-data/':'/v1/alerts/')+encodeURIComponent(id):digest?'/v1/digests/'+encodeURIComponent(digest):'/v1/alerts').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{alerts=id?[data.alert]:data.alerts;loading=false;render();}).catch(()=>{loading=false;failed=true;render();});
 })();`;

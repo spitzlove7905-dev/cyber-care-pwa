@@ -5,6 +5,7 @@ import { localizedBulletin } from './localization.js';
 import { buildSocialDraft, sendSocialDraft, ensureSocialStorage } from './social.js';
 import { checkBufferConnection } from './buffer-connection.js';
 import { officialGuidance } from './guidance.js';
+import { runSocialSchedule, ensureScheduleStorage } from './scheduler.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -21,16 +22,26 @@ export default {
     if (request.method === 'GET' && url.pathname === '/alerts') return html(alertsPage);
     if (request.method === 'GET' && url.pathname === '/healthz') return json({ ok: true });
     if (request.method === 'GET' && url.pathname === '/v1/alerts') return listPublishedAlerts(env);
+    if (request.method === 'GET' && url.pathname.startsWith('/v1/digests/')) {
+      const id=url.pathname.slice('/v1/digests/'.length);
+      if(!/^[a-f0-9]{64}$/.test(id))return json({error:'invalid_id'},400);
+      let run;try{run=await env.DB.prepare('SELECT alert_ids_json FROM social_runs WHERE id = ?').bind(id).first()}catch{return json({error:'not_found'},404)}
+      if(!run)return json({error:'not_found'},404);
+      const ids=JSON.parse(run.alert_ids_json);
+      if(!Array.isArray(ids)||!ids.length||ids.length>10||!ids.every(value=>/^[a-f0-9]{64}$/.test(value)))return json({error:'not_found'},404);
+      const result=await env.DB.prepare("SELECT * FROM alerts WHERE status = 'published' AND id IN ("+ids.map(()=>'?').join(',')+") ORDER BY published_at DESC").bind(...ids).all();
+      return json({alerts:result.results.map(publicAlert)});
+    }
     if (request.method === 'GET' && url.pathname.startsWith('/v1/alerts/')) return getPublishedAlert(env, url.pathname.slice('/v1/alerts/'.length));
     if (url.pathname.startsWith('/admin/')) return handleAdmin(request, env, url);
     return json({ error: 'not_found' }, 404);
   },
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runMonitor(env));
+    ctx.waitUntil(runMonitor(env,_controller.scheduledTime));
   }
 };
 
-async function runMonitor(env) {
+async function runMonitor(env,scheduledTime=Date.now()) {
   for (const source of SOURCES) {
     try {
       if (source.key === 'cisa-kev') await ingestCisaKev(env, source);
@@ -38,6 +49,7 @@ async function runMonitor(env) {
       await recordSourceFailure(env, source.key, error);
     }
   }
+  try{await runSocialSchedule(env,scheduledTime)}catch{await audit(env,null,'social_schedule_failed','system',{reason:'connection_or_storage_failure'})}
 }
 
 async function ingestCisaKev(env, source) {
@@ -129,6 +141,22 @@ function publicAlert(row) {
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if(request.method==='POST'&&url.pathname==='/admin/social-emergency'){
+   if(request.headers.get('origin')!==url.origin||request.headers.get('content-type')!=='application/json')return json({error:'invalid_request'},403);
+   if((await request.text()).length>32)return json({error:'request_too_large'},413);
+   const now=Date.now();const day=new Date(now+9*3600000).toISOString().slice(0,10);
+   await audit(env,null,'emergency_social_requested',identity.actor,{day});
+   try{return json(await runSocialSchedule(env,now,now,fetch,{day,slot:'emergency'}))}
+   catch{return json({error:'social_emergency_failed'},502)}
+  }
+  if(request.method==='POST'&&url.pathname==='/admin/schedule-check'){
+   if(request.headers.get('origin')!==url.origin||request.headers.get('content-type')!=='application/json')return json({error:'invalid_request'},403);
+   await ensureScheduleStorage(env.DB);
+   const connection=await checkBufferConnection(env);
+   const channels=connection.channels.filter(c=>c.name===env.BUFFER_ALLOWED_ACCOUNT);
+   const runs=await env.DB.prepare('SELECT day,slot,platform,status,created_at FROM social_runs ORDER BY created_at DESC LIMIT 10').all();
+   return json({enabled:env.SOCIAL_AUTO_ENABLED==='true',times:['08:00','18:00'],timezone:'Asia/Tokyo',emergency:'admin_approved_once_daily',startAt:env.SOCIAL_START_AT,channels:channels.map(c=>({platform:c.platform,name:c.name,queuePaused:c.queuePaused})),runs:runs.results});
+  }
   if (request.method === 'POST' && url.pathname === '/admin/social-draft') {
     if (request.headers.get('origin') !== url.origin || request.headers.get('content-type') !== 'application/json') return json({ error: 'invalid_request' }, 403);
     if (env.BUFFER_DRAFTS_ENABLED !== 'true' || !env.BUFFER_API_TOKEN) return json({ error: 'drafts_disabled' }, 403);

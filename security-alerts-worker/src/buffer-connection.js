@@ -31,6 +31,5 @@ export async function checkBufferConnection(env, fetcher = fetch) {
       channels.push({ id: channel.id, name: channel.name, platform: channel.service === 'twitter' ? 'x' : 'threads', queuePaused: channel.isQueuePaused === true });
     }
   }
-  // Actual sending has no exposed route until channel selection and quotas are verified.
-  return { configured: true, sendingEnabled: false, channels };
+  return { configured: true, sendingEnabled: env.SOCIAL_AUTO_ENABLED === 'true', channels };
 }

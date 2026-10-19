@@ -8,7 +8,10 @@
     "ACCESS_AUD": "d71b64150c77f94e5fe6812c9ed2c7cd465ccb4c4d53429c922d35182fa72d1c",
     "REVIEW_ACTIONS_ENABLED": "true",
     "BUFFER_DRAFTS_ENABLED": "true",
-    "BUFFER_ALLOWED_ACCOUNT": "spitz7905"
+    "BUFFER_ALLOWED_ACCOUNT": "spitz7905",
+    "AUTO_PUBLISH_ENABLED": "true",
+    "SOCIAL_AUTO_ENABLED": "true",
+    "SOCIAL_START_AT": "2026-10-19T02:10:00.000Z"
   },
   "triggers": {
     "crons": ["*/15 * * * *"]
