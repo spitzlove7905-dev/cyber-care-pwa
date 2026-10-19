@@ -12,6 +12,12 @@ const setup=navigator=>{
  const share=factory(navigator,{createElement:element},{origin:'https://alerts.example'},'ja',(tag,value)=>Object.assign(element(tag),{textContent:value}));
  const group=share({id:'a'.repeat(64)},{title:'Alert'});return {group,button:group.children[0],status:group.children[1]};
 };
+test('sharing is compact, right aligned and below the Cyber Care introduction',()=>{
+ const {group,button}=setup({});
+ assert.equal(group.tag,'div');assert.equal(group.style.textAlign,'right');
+ assert.equal(button.style.fontSize,'0.85rem');assert.equal(button.style.minHeight,'36px');
+ assert.match(publicPageScript,/article.append\(about\(t\),shareControl\(a,c\)\)/);
+});
 test('share menu receives only a public canonical bulletin URL',async()=>{
  let content;const {button}=setup({share:async data=>{content=data}});
  await button.onclick();assert.equal(content.url,'https://alerts.example/alerts?id='+'a'.repeat(64));assert.equal(button.disabled,false);

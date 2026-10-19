@@ -12,5 +12,5 @@ test('bilingual API keeps one bulletin identity rather than two publications',as
  const body=await response.json();assert.equal(body.alerts.length,1);assert.equal(body.alerts[0].id,row.id);assert.deepEqual(Object.keys(body.alerts[0].languages),['ja','en']);
 });
 test('public page embeds a valid script with both languages and Cyber Care introduction',()=>{
- const script=alertsPage.match(/<script>([\s\S]*)<\/script>/)[1];assert.doesNotThrow(()=>new Function(script));assert.match(alertsPage,/alert-language/);assert.match(script,/About Cyber Care/);assert.match(script,/Cyber Careについて/);assert.doesNotMatch(script,/document.createElement\('details'\)/);assert.doesNotMatch(script,/share.href=/);assert.match(script,/article.append\(shareControl\(a,c\),about\(t\)\)/);
+ const script=alertsPage.match(/<script>([\s\S]*)<\/script>/)[1];assert.doesNotThrow(()=>new Function(script));assert.match(alertsPage,/alert-language/);assert.match(script,/About Cyber Care/);assert.match(script,/Cyber Careについて/);assert.doesNotMatch(script,/document.createElement\('details'\)/);assert.doesNotMatch(script,/share.href=/);assert.match(script,/article.append\(about\(t\),shareControl\(a,c\)\)/);
 });

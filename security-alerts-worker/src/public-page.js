@@ -9,8 +9,9 @@ export const publicPageScript = String.raw`(() => {
  const selector=document.getElementById('alert-language');let alerts=[],loading=true,failed=false;
  function node(tag,value){const e=document.createElement(tag);e.textContent=value||'';return e;}
  function shareControl(a,c){
-  const group=document.createElement('section');const button=node('button',lang==='ja'?'この速報を共有':'Share this alert');button.type='button';
-  const status=node('p','');status.setAttribute('role','status');group.append(button,status);
+  const group=document.createElement('div');group.className='alert-share';group.style.textAlign='right';group.style.marginTop='12px';
+  const button=node('button',lang==='ja'?'この速報を共有':'Share this alert');button.type='button';button.style.fontSize='0.85rem';button.style.padding='7px 11px';button.style.margin='0';button.style.border='1px solid #b9cbd5';button.style.borderRadius='6px';button.style.background='#fff';button.style.minHeight='36px';
+  const status=node('p','');status.style.fontSize='0.8rem';status.style.margin='6px 0 0';status.setAttribute('role','status');group.append(button,status);
   const language=lang;const canonical=new URL('/alerts',location.origin);canonical.searchParams.set('id',a.id);
   button.onclick=async()=>{
    button.disabled=true;
@@ -46,7 +47,7 @@ export const publicPageScript = String.raw`(() => {
     article.append(node('p',lang==='ja'?'現時点で、こちらではメーカー公式の対策ページを確認できていません。対策が未発表、または存在しないという意味ではありません。':'We have not yet verified an official vendor mitigation page. This does not mean that mitigation has not been announced or does not exist.'));
    }
    if(a.publishedAt)article.append(node('small',t.date+': '+new Date(a.publishedAt).toLocaleString(lang==='ja'?'ja-JP':'en-US')));
-   article.append(shareControl(a,c),about(t));list.append(article);
+   article.append(about(t),shareControl(a,c));list.append(article);
   }
   const footer=document.getElementById('about');footer.replaceChildren();if(!alerts.length)footer.append(about(t));
  }
