@@ -26,12 +26,8 @@ export const publicPageScript = String.raw`(() => {
    }else{
     article.append(node('p',lang==='ja'?'現時点で、こちらではメーカー公式の対策ページを確認できていません。対策が未発表、または存在しないという意味ではありません。':'We have not yet verified an official vendor mitigation page. This does not mean that mitigation has not been announced or does not exist.'));
    }
-   const details=document.createElement('details');details.append(node('summary',lang==='ja'?'詳しく見る':'Read more'),node('small',c.label));
-   if(lang==='ja')details.append(node('p',c.summary),node('h3','公式の説明・対処方法（英語原文）'));
-   details.append(node('p',a.languages.en.summary),node('p',a.languages.en.recommendedAction));
-   const source=node('a',t.source);source.href=a.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';details.append(node('p',a.cveId),source);
-   if(a.publishedAt)details.append(node('p',t.date+': '+new Date(a.publishedAt).toLocaleString(lang==='ja'?'ja-JP':'en-US')));
-   article.append(details);const share=node('a',t.share);share.href='/alerts?id='+encodeURIComponent(a.id);article.append(share,about(t));list.append(article);
+   if(a.publishedAt)article.append(node('small',t.date+': '+new Date(a.publishedAt).toLocaleString(lang==='ja'?'ja-JP':'en-US')));
+   article.append(about(t));list.append(article);
   }
   const footer=document.getElementById('about');footer.replaceChildren();if(!alerts.length)footer.append(about(t));
  }
