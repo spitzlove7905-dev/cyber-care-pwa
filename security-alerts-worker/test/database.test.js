@@ -11,6 +11,7 @@ import {runMonitor} from '../src/index.js';
 import {collectionMessage,selectIncidents} from '../../security-data.js';
 import {runSocialSchedule} from '../src/scheduler.js';
 import {storeCandidates} from '../src/database-store.js';
+import {onRequestGet} from '../../functions/api/security/[[path]].js';
 
 const incident={eventKey:'incident:test-company-2026',title:'テスト用の事件',organization:'株式会社テスト',organizationReading:'テスト',summary:'検証専用',action:'公式案内の確認',severityReason:'公式発表の被害規模',urgencyReason:'対策が必要',damage:'不明',responseStatus:'対応中',sourceName:'当事者の公式発表',sourceUrl:'https://example.org/notice',publishedAt:'2026-10-01T09:00:00+09:00',occurredAt:null,sourceUpdatedAt:null,cvss:null,urgency:2,severity:'高',state:'注意',attackType:'個人情報漏えい',confirmation:'確定情報（情報源で確認）',status:'published'};
 test('initial status is unconfirmed and JST comes only from stored collection results',async()=>{
@@ -87,4 +88,10 @@ test('600-record historical imports use 12 SQL statements and do not duplicate o
  await storeCandidates({DB:countingDB},records,stamp);assert.equal(queries,12);assert.equal(sql.prepare('SELECT COUNT(*) n FROM alerts').get().n,600);
  sql.prepare("UPDATE alerts SET status='rejected' WHERE event_key='bulk:0'").run();records[0].hash='revision-2';records[1].hash='revision-2';records[1].title='Updated official content';
  await storeCandidates({DB},records,stamp);assert.equal(sql.prepare("SELECT status FROM alerts WHERE event_key='bulk:0'").get().status,'rejected');assert.equal(sql.prepare("SELECT title FROM alerts WHERE event_key='bulk:1'").get().title,'Updated official content');assert.equal(sql.prepare('SELECT COUNT(*) n FROM alerts').get().n,600);
+});
+test('Pages API uses only the bound Worker and fails closed without a binding',async()=>{
+ const paths=[];const env={SECURITY_ALERTS:{fetch:async request=>{paths.push(new URL(request.url).pathname);return Response.json({status:'unconfirmed'});}}};
+ const response=await onRequestGet({params:{path:['status']},env});assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.deepEqual(paths,['/v1/database/status']);
+ assert.equal((await onRequestGet({params:{path:['admin','database']},env})).status,404);assert.equal(paths.length,1);
+ assert.equal((await onRequestGet({params:{path:['database']},env:{}})).status,503);
 });

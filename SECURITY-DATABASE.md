@@ -7,7 +7,7 @@
 ## 構成
 
 - Pages：トップに入口を1つ追加。`security-database.html` に検索・7種の並べ替え・複合絞り込み・30件ずつのカード表示。
-- Pages Functions：`/api/security/status` と `/api/security/database`。接続先Workerを固定し、管理APIや任意URLへのプロキシを禁止。D1の追加バインディングは不要。
+- Pages Functions：`/api/security/status` と `/api/security/database`。`wrangler.jsonc` のサービスバインディング `SECURITY_ALERTS` で既存Workerを呼び出す。管理APIや任意URLへのプロキシを禁止。D1の追加バインディングは不要。
 - Worker：既存CISA KEVにJPCERT/CC公式RSSを追加。最新90日と、90日より前のランサムウェア利用が確認されたKEV項目を収録。既存記事は削除しない。
 - D1：既存 `alerts` / `source_state` / `social_runs` を使用。マイグレーション0004で事件詳細、情報源、収集実行結果、記事改訂ごとの配信履歴を追加。
 - 管理者：既存Cloudflare Access認証下の `/admin/database` で事件JSONを登録・更新。漏えい・組織被害・進行中の事件など、RSS外の情報も保存できる。同一事件は同じeventKeyで更新。単一CVEは共通事件キーに統合。

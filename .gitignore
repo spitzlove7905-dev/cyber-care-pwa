@@ -4,4 +4,5 @@ security-alerts-worker/.wrangler/
 security-alerts-worker/node_modules/
 security-alerts-worker/.npm-cache/
 /dist/
+/.wrangler/
 
