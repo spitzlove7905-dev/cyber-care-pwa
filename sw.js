@@ -1,5 +1,5 @@
-const CACHE = 'cyber-care-v10';
-const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js'];
+const CACHE = 'cyber-care-v11';
+const ASSETS = ['./', './index.html', './privacy.html', './operator.html', './manifest.webmanifest', './favicon.svg', './enhancements.js','./security-database.html','./security-database.css','./security-database.js','./security-data.js','./security-status.js'];
 
 self.addEventListener('install', event =>
   event.waitUntil(
@@ -22,6 +22,8 @@ self.addEventListener('fetch', event => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+  // Never cache collection state, or fall back to a successful stale response.
+  if (requestUrl.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     fetch(event.request)

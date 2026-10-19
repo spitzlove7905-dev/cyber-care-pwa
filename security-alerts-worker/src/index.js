@@ -1,4 +1,4 @@
-import { SOURCES, candidateFromKev, publicationDecision, sha256, shouldMonitorKevRecord } from './policy.js';
+import { SOURCES, candidateFromKev, sha256, shouldMonitorKevRecord } from './policy.js';
 import { adminPage, alertsPage } from './pages.js';
 import { authenticateAdmin } from './auth.js';
 import { localizedBulletin } from './localization.js';
@@ -6,6 +6,9 @@ import { buildSocialDraft, sendSocialDraft, ensureSocialStorage } from './social
 import { checkBufferConnection } from './buffer-connection.js';
 import { officialGuidance } from './guidance.js';
 import { runSocialSchedule, ensureScheduleStorage } from './scheduler.js';
+import { DATABASE_SOURCES, ingestAdvisories, collectionStatus, databaseRecords, readLimited } from './database.js';
+import {databaseAdminPage,saveReviewedIncident} from './database-admin.js';
+import {storeCandidates} from './database-store.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -14,6 +17,8 @@ const PUBLIC_CACHE_HEADERS = JSON_HEADERS;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if(request.method==='GET' && url.pathname==='/v1/database/status') return json(await collectionStatus(env));
+    if(request.method==='GET' && url.pathname==='/v1/database') return json({collection:await collectionStatus(env),incidents:await databaseRecords(env)});
     if (url.pathname === '/admin') return Response.redirect(`${url.origin}/admin/`, 302);
     if (request.method === 'GET' && url.pathname === '/admin/') {
       if ((env.ACCESS_TEAM_DOMAIN || env.ACCESS_AUD) && !await authenticateAdmin(request, env)) return json({ error: 'unauthorized' }, 401);
@@ -41,14 +46,25 @@ export default {
   }
 };
 
-async function runMonitor(env,scheduledTime=Date.now()) {
+export async function runMonitor(env,scheduledTime=Date.now()) {
+  const runId=crypto.randomUUID();const started=new Date().toISOString();const outcomes=[];
+  await env.DB.prepare("INSERT INTO collection_runs(id,started_at,status) VALUES(?,?,'running')").bind(runId,started).run();
   for (const source of SOURCES) {
     try {
       if (source.key === 'cisa-kev') await ingestCisaKev(env, source);
+      outcomes.push({name:source.name,key:source.key,status:'success'});
     } catch (error) {
-      await recordSourceFailure(env, source.key, error);
+      outcomes.push({name:source.name,key:source.key,status:'failed'});
+      try{await recordSourceFailure(env, source.key, error);}catch{/* Preserve the run outcome even if failure auditing is unavailable. */}
     }
   }
+  try{await ingestAdvisories(env);outcomes.push({name:DATABASE_SOURCES[1].name,key:'jpcert',status:'success'});}
+  catch{outcomes.push({name:DATABASE_SOURCES[1].name,key:'jpcert',status:'failed'});}
+  const count=outcomes.filter(s=>s.status==='success').length;
+  const status=count===outcomes.length?'success':count?'partial':'failed';
+  await env.DB.prepare('UPDATE collection_runs SET status=?,completed_at=?,sources_json=? WHERE id=?').bind(status,new Date().toISOString(),JSON.stringify(outcomes),runId).run();
+  // A failed/partial collection is never interpreted as an empty news day.
+  if(status!=='success')return;
   try{await runSocialSchedule(env,scheduledTime)}catch{await audit(env,null,'social_schedule_failed','system',{reason:'connection_or_storage_failure'})}
 }
 
@@ -57,71 +73,28 @@ async function ingestCisaKev(env, source) {
   const headers = { accept: 'application/json' };
   if (savedState?.etag) headers['if-none-match'] = savedState.etag;
   if (savedState?.last_modified) headers['if-modified-since'] = savedState.last_modified;
-  const response = await fetch(source.url, { headers, signal: AbortSignal.timeout(15_000) });
+  const response = await fetch(source.url, { headers, signal: AbortSignal.timeout(15_000), redirect:'error' });
   const now = new Date().toISOString();
 
-  if (response.status === 304) {
+  const needsBackfill=await env.DB.prepare("SELECT id FROM collection_runs WHERE status='success' LIMIT 1").first();
+  if (response.status === 304 && needsBackfill) {
     await updateSourceState(env, source.key, savedState?.etag ?? null, savedState?.last_modified ?? null, now, null);
     return;
   }
-  if (!response.ok) throw new Error(`${source.key} returned HTTP ${response.status}`);
+  if (!response.ok&&response.status!==304) throw new Error(`${source.key} returned HTTP ${response.status}`);
 
-  const payload = await response.json();
-  if (!Array.isArray(payload.vulnerabilities)) throw new Error('Unexpected CISA KEV response');
-  const autoPublishEnabled = env.AUTO_PUBLISH_ENABLED === 'true';
-  for (const raw of payload.vulnerabilities) {
-    if (!shouldMonitorKevRecord(raw, savedState?.last_success_at, new Date(now))) continue;
-    const candidate = candidateFromKev(raw);
-    if (candidate) await upsertCandidate(env, source, candidate, autoPublishEnabled, now);
+  // Ignore old conditional headers for the first historical import.
+  const payload = JSON.parse(await readLimited(response.status===304?await fetch(source.url,{signal:AbortSignal.timeout(15000),redirect:'error'}):response));
+  if (!Array.isArray(payload.vulnerabilities)||!payload.vulnerabilities.length||payload.vulnerabilities.some(raw=>!candidateFromKev(raw)||!/^\d{4}-\d{2}-\d{2}$/.test(raw.dateAdded))) throw new Error('Unexpected CISA KEV response');
+  const records=[];
+  for(const raw of payload.vulnerabilities){
+    if(!shouldMonitorKevRecord(raw,null,new Date(now),90)&&raw.knownRansomwareCampaignUse!=='Known')continue;
+    const c=candidateFromKev(raw);const id=await sha256(c.eventKey);
+    const hash=await sha256(JSON.stringify([c.title,c.summary,c.recommendedAction,c.evidence,c.dueDate]));
+    records.push({id,eventKey:c.eventKey,sourceKey:source.key,sourceUrl:c.sourceUrl,sourceName:source.name,cve:c.cveId,title:c.title,summary:c.summary,action:c.recommendedAction,evidence:JSON.stringify(c.evidence),score:c.score,status:env.AUTO_PUBLISH_ENABLED==='true'?'published':'pending_review',publishedAt:c.dateAdded,sourceUpdatedAt:null,stamp:now,hash,organization:c.vendorProject,attackType:raw.knownRansomwareCampaignUse==='Known'?'ランサムウェア':'脆弱性',severity:'高',severityReason:'CISAが実悪用を確認した脆弱性。CVSS・被害規模は未確認',urgency:3,urgencyReason:'実悪用が確認され、利用対象なら公式の更新・回避策を確認する必要があります。現在進行中の攻撃の断定ではありません',state:'注意',damage:'実悪用確認済み。被害組織・規模・発生日は不明',responseStatus:'CISAの対処案内あり。利用者の対策状況は不明。CISA対策期限：'+(c.dueDate||'不明'),confirmation:'脆弱性の実悪用は公式確認済み。個別被害は未確認'});
   }
-  await updateSourceState(env, source.key, response.headers.get('etag'), response.headers.get('last-modified'), now, null);
-}
-
-async function upsertCandidate(env, source, candidate, autoPublishEnabled, now) {
-  const decision = publicationDecision(candidate, autoPublishEnabled);
-  const contentHash = await sha256(JSON.stringify({
-    title: candidate.title,
-    summary: candidate.summary,
-    recommendedAction: candidate.recommendedAction,
-    evidence: candidate.evidence,
-    score: candidate.score
-  }));
-  const id = await sha256(candidate.eventKey);
-  const existing = await env.DB.prepare('SELECT id, content_hash, status FROM alerts WHERE event_key = ?').bind(candidate.eventKey).first();
-  // Reviewed decisions persist. A source refresh must never republish a rejection.
-  const desiredStatus = existing && existing.status !== 'pending_review' ? existing.status : decision.status;
-  // Freeze reviewed text until a separate revision review workflow is available.
-  if (existing && existing.status !== 'pending_review') return;
-  if (existing?.content_hash === contentHash && existing.status === desiredStatus) return;
-  const publishedAt = desiredStatus === 'published' ? now : null;
-
-  await env.DB.prepare(`
-    INSERT INTO alerts (
-      id, event_key, source_key, source_url, cve_id, title, summary, recommended_action,
-      evidence_json, severity_score, status, source_published_at, source_updated_at,
-      published_at, content_hash, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(event_key) DO UPDATE SET
-      source_url = excluded.source_url,
-      title = excluded.title,
-      summary = excluded.summary,
-      recommended_action = excluded.recommended_action,
-      evidence_json = excluded.evidence_json,
-      severity_score = excluded.severity_score,
-      source_published_at = excluded.source_published_at,
-      source_updated_at = excluded.source_updated_at,
-      status = CASE WHEN alerts.status = 'published' THEN 'published' ELSE excluded.status END,
-      published_at = CASE WHEN alerts.status = 'published' THEN alerts.published_at ELSE excluded.published_at END,
-      content_hash = excluded.content_hash,
-      updated_at = excluded.updated_at
-  `).bind(
-    id, candidate.eventKey, source.key, candidate.sourceUrl, candidate.cveId, candidate.title,
-    candidate.summary, candidate.recommendedAction, JSON.stringify(candidate.evidence), candidate.score,
-    desiredStatus, candidate.dateAdded || null, candidate.dueDate || null, publishedAt, contentHash, now, now
-  ).run();
-
-  if (!existing) await audit(env, id, desiredStatus === 'published' ? 'auto_published' : 'queued_for_review', 'system', { source: source.key, score: candidate.score, reason: decision.reason });
-  else if (existing.content_hash !== contentHash) await audit(env, id, 'source_updated', 'system', { source: source.key, score: candidate.score });
+  await storeCandidates(env,records,now);
+  await updateSourceState(env,source.key,response.headers.get('etag'),response.headers.get('last-modified'),new Date().toISOString(),null);
 }
 
 async function listPublishedAlerts(env) {
@@ -135,12 +108,20 @@ async function getPublishedAlert(env, id) {
 }
 
 function publicAlert(row) {
-  return { id: row.id, cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at, languages: localizedBulletin(row), officialGuidance: officialGuidance(row) };
+  return { id: row.id, informationKind:row.source_published_at&&Date.now()-Date.parse(row.source_published_at)>7*86400000?'history':'advisory', cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at, languages: localizedBulletin(row), officialGuidance: officialGuidance(row) };
 }
 
 async function handleAdmin(request, env, url) {
   const identity = await authenticateAdmin(request, env);
   if (!identity) return json({ error: 'unauthorized' }, 401);
+  if(request.method==='GET'&&url.pathname==='/admin/database')return html(databaseAdminPage);
+  if(request.method==='POST'&&url.pathname==='/admin/database'){
+    if(env.REVIEW_ACTIONS_ENABLED!=='true')return json({error:'review_actions_disabled'},403);
+    if(request.headers.get('origin')!==url.origin||request.headers.get('content-type')!=='application/json')return json({error:'invalid_request'},403);
+    const raw=await request.text();if(raw.length>50000)return json({error:'request_too_large'},413);
+    let body;try{body=JSON.parse(raw)}catch{return json({error:'invalid_json'},400)}
+    try{return json(await saveReviewedIncident(env,body,identity.actor))}catch(error){return json({error:/^(invalid_|required_)/.test(error.message)?error.message:'save_failed'},400)}
+  }
   if(request.method==='POST'&&url.pathname==='/admin/social-emergency'){
    if(request.headers.get('origin')!==url.origin||request.headers.get('content-type')!=='application/json')return json({error:'invalid_request'},403);
    if((await request.text()).length>32)return json({error:'request_too_large'},413);

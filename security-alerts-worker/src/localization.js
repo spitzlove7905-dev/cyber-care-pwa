@@ -1,6 +1,10 @@
 export function localizedBulletin(row) {
   const product = row.title.replace(/^【重要】/, '').replace(/の脆弱性（CVE-\d{4}-\d+）$/, '').replace(/の脆弱性$/, '');
   const confirmedKev = row.source_url === 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json' && JSON.parse(row.evidence_json).includes('CISA KEV掲載');
+  if(!confirmedKev)return {
+    ja:{title:row.title,target:'対象企業・組織・製品は情報源と記事本文を確認してください。',issue:row.summary,action:row.recommended_action,summary:row.summary,recommendedAction:row.recommended_action,label:'情報源に基づく記事（未確認の範囲は本文に記載）'},
+    en:{title:row.title,target:'See the source and article for affected organizations or products.',issue:row.summary,action:row.recommended_action,summary:row.summary,recommendedAction:row.recommended_action,label:'Source-based article (original source language)'}
+  };
   return {
     ja: { title: `${product}をお使いの方へ`,
       target: `${product}を利用している方。対象バージョンは公式案内で確認してください。`,

@@ -32,7 +32,7 @@ export const publicPageScript = String.raw`(() => {
  function render(){const t=copy[lang];document.documentElement.lang=lang;document.title=t.heading+' | Cyber Care';selector.value=lang;document.querySelector('header h1').textContent=t.heading;document.querySelector('header a').textContent=t.back;document.querySelector('header a').href='https://cyber-care-pwa.pages.dev/?lang='+lang;document.getElementById('intro').textContent=t.intro;document.getElementById('message').textContent=loading?t.loading:failed?t.error:alerts.length?'':t.empty;
   const list=document.getElementById('list');list.replaceChildren();
   for(const a of alerts){
-   const c=a.languages[lang];const article=document.createElement('article');article.append(node('h2',c.title));
+   const c=a.languages[lang];const article=document.createElement('article');if(a.informationKind==='history')article.append(node('p',lang==='ja'?'過去の重大事件・注意喚起（新着速報ではありません）':'Historical incident / advisory (not breaking news)'));article.append(node('h2',c.title));
    const labels=lang==='ja'?['対象の人','どんな問題か','今すること']:['Who this affects','What happened','What to do now'];
    for(const [i,value] of [c.target,c.issue,c.action].entries())article.append(node('h3',labels[i]),node('p',value));
    article.append(node('h3',lang==='ja'?'メーカー公式の対策情報':'Official vendor mitigation guidance'));
