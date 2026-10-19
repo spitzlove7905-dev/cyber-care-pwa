@@ -4,6 +4,6 @@
   "pages_build_output_dir": "dist",
   "compatibility_date": "2026-10-09",
   "services": [
-    {"binding": "SECURITY_ALERTS", "service": "cyber-care-security-alerts"}
+    {"binding": "SECURITY_ALERTS", "service": "cyber-care-security-alerts", "environment": "production"}
   ]
 }
