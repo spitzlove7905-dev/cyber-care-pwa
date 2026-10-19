@@ -8,6 +8,25 @@ export const publicPageScript = String.raw`(() => {
  let lang=['ja','en'].includes(query.get('lang'))?query.get('lang'):['ja','en'].includes(saved)?saved:navigator.language.toLowerCase().startsWith('ja')?'ja':'en';
  const selector=document.getElementById('alert-language');let alerts=[],loading=true,failed=false;
  function node(tag,value){const e=document.createElement(tag);e.textContent=value||'';return e;}
+ function shareControl(a,c){
+  const group=document.createElement('section');const button=node('button',lang==='ja'?'この速報を共有':'Share this alert');button.type='button';
+  const status=node('p','');status.setAttribute('role','status');group.append(button,status);
+  const language=lang;const canonical=new URL('/alerts',location.origin);canonical.searchParams.set('id',a.id);
+  button.onclick=async()=>{
+   button.disabled=true;
+   try{
+    if(typeof navigator.share==='function'){
+     try{await navigator.share({title:c.title,url:canonical.href});return;}catch(error){if(error.name==='AbortError')return;}
+    }
+    if(navigator.clipboard?.writeText){
+     try{await navigator.clipboard.writeText(canonical.href);status.textContent=language==='ja'?'速報のリンクをコピーしました。':'Alert link copied.';return;}catch{}
+    }
+    status.textContent=language==='ja'?'下のURLを選択してコピーしてください。':'Select and copy the URL below.';
+    let input=group.querySelector('input');if(!input){input=document.createElement('input');input.readOnly=true;input.style.width='100%';input.setAttribute('aria-label',language==='ja'?'共有用の速報URL':'Alert URL to share');group.append(input);}
+    input.value=canonical.href;input.focus();input.select();
+   }finally{button.disabled=false;}
+  };return group;
+ }
  function about(t){const s=document.createElement('p');s.append(node('span',lang==='ja'?'困ったときの記録や相談準備には、Cyber Careをご利用ください。':'Cyber Care can help you prepare notes and organize a request for support.'));const a=node('a',t.open);a.href='https://cyber-care-pwa.pages.dev/?lang='+lang;a.rel='noreferrer';s.append(document.createElement('br'),a);return s;}
  function render(){const t=copy[lang];document.documentElement.lang=lang;document.title=t.heading+' | Cyber Care';selector.value=lang;document.querySelector('header h1').textContent=t.heading;document.querySelector('header a').textContent=t.back;document.querySelector('header a').href='https://cyber-care-pwa.pages.dev/?lang='+lang;document.getElementById('intro').textContent=t.intro;document.getElementById('message').textContent=loading?t.loading:failed?t.error:alerts.length?'':t.empty;
   const list=document.getElementById('list');list.replaceChildren();
@@ -27,7 +46,7 @@ export const publicPageScript = String.raw`(() => {
     article.append(node('p',lang==='ja'?'現時点で、こちらではメーカー公式の対策ページを確認できていません。対策が未発表、または存在しないという意味ではありません。':'We have not yet verified an official vendor mitigation page. This does not mean that mitigation has not been announced or does not exist.'));
    }
    if(a.publishedAt)article.append(node('small',t.date+': '+new Date(a.publishedAt).toLocaleString(lang==='ja'?'ja-JP':'en-US')));
-   article.append(about(t));list.append(article);
+   article.append(shareControl(a,c),about(t));list.append(article);
   }
   const footer=document.getElementById('about');footer.replaceChildren();if(!alerts.length)footer.append(about(t));
  }
