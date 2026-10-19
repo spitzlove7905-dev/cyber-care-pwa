@@ -26,7 +26,7 @@ function socialPreview(a,e) {
   const select=document.createElement('select');select.setAttribute('aria-label','SNS下書きの言語');
   for(const [value,label] of [['ja','日本語'],['en','English']]){const option=text('option',label);option.value=value;select.append(option)}
   panel.append(select);
-  const reader=text('a','対策を見る');reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang=ja';reader.target='_blank';reader.rel='noopener noreferrer';reader.style.display='inline-block';reader.style.padding='12px';panel.append(reader,text('p','このリンクは、この速報一件だけを開きます。下に続く管理用の一覧とは別のページです。'));
+  const reader=text('a','速報の詳細を見る');reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang=ja';reader.target='_blank';reader.rel='noopener noreferrer';reader.style.display='inline-block';reader.style.padding='12px';panel.append(reader,text('p','このリンクは、この速報一件だけを開きます。下に続く管理用の一覧とは別のページです。'));
   const drafts=document.createElement('div');panel.append(drafts);
   let version=0;
   async function refresh(){const current=++version;reader.href='/alerts?id='+encodeURIComponent(a.id)+'&lang='+select.value;drafts.replaceChildren(text('p','読み込み中…'));try{
