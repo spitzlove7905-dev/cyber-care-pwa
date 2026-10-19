@@ -20,7 +20,9 @@ export function eligibleForSocial(row){
 export function digestText(rows,id){
  const url='https://cyber-care-security-alerts.spitz-love-7905.workers.dev/alerts?digest='+id;
  const shown=rows.slice(0,2).map(row=>row.cve_id).join(' / ');
- const text='【セキュリティ速報】新着'+rows.length+'件\n'+shown+(rows.length>2?' ほか':'')+'\n\n速報の詳細はこちら ↓\n'+url+'\n\n記録・相談準備を支えるCyber Careは、プロフィールのリンクから。';
+ const product=(rows[0].title||'製品の安全情報').replace(/^【重要】/,'').replace(/の脆弱性（CVE-\d{4}-\d+）$/,'');
+ const headline=Array.from(product).slice(0,28).join('')+(Array.from(product).length>28?'…':'')+(rows.length>1?' ほか':'');
+ const text='【セキュリティ速報】新着'+rows.length+'件\n'+headline+'\n'+shown+(rows.length>2?' ほか':'')+'\n\n速報の詳細はこちら ↓\n'+url+'\n\n記録・相談準備を支えるCyber Careは、プロフィールのリンクから。';
  if(!twitterText.parseTweet(text).valid||Array.from(text).length>450)throw Error('digest_too_long');
  return text;
 }
