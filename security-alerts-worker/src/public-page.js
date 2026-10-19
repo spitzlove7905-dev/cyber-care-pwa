@@ -15,6 +15,17 @@ export const publicPageScript = String.raw`(() => {
    const c=a.languages[lang];const article=document.createElement('article');article.append(node('h2',c.title));
    const labels=lang==='ja'?['対象の人','どんな問題か','今すること']:['Who this affects','What happened','What to do now'];
    for(const [i,value] of [c.target,c.issue,c.action].entries())article.append(node('h3',labels[i]),node('p',value));
+   article.append(node('h3',lang==='ja'?'メーカー公式の対策情報':'Official vendor mitigation guidance'));
+   const guidance=a.officialGuidance;let guidanceUrl=null;
+   try{const parsed=new URL(guidance?.url);if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)guidanceUrl=parsed;}catch{}
+   if(guidance?.status==='verified'&&guidanceUrl){
+    const link=node('a',lang==='ja'?'メーカー公式の対策ページを開く（外部サイト）':'Open the official vendor mitigation page (external site)');
+    link.href=guidanceUrl.href;link.target='_blank';link.rel='noopener noreferrer';article.append(link);
+    article.append(node('p',lang==='ja'?'対象バージョンや具体的な対策は、リンク先の最新の公式案内で確認してください。':'Check the latest official guidance for affected versions and specific mitigation steps.'));
+    if(guidance.verifiedAt)article.append(node('small',(lang==='ja'?'リンク確認日: ':'Link checked: ')+guidance.verifiedAt));
+   }else{
+    article.append(node('p',lang==='ja'?'現時点で、こちらではメーカー公式の対策ページを確認できていません。対策が未発表、または存在しないという意味ではありません。':'We have not yet verified an official vendor mitigation page. This does not mean that mitigation has not been announced or does not exist.'));
+   }
    const details=document.createElement('details');details.append(node('summary',lang==='ja'?'詳しく見る':'Read more'),node('small',c.label));
    if(lang==='ja')details.append(node('p',c.summary),node('h3','公式の説明・対処方法（英語原文）'));
    details.append(node('p',a.languages.en.summary),node('p',a.languages.en.recommendedAction));

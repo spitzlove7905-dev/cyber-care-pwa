@@ -4,6 +4,7 @@ import { authenticateAdmin } from './auth.js';
 import { localizedBulletin } from './localization.js';
 import { buildSocialDraft, sendSocialDraft, ensureSocialStorage } from './social.js';
 import { checkBufferConnection } from './buffer-connection.js';
+import { officialGuidance } from './guidance.js';
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 // Withdrawal must become visible immediately, including to browser clients.
@@ -122,7 +123,7 @@ async function getPublishedAlert(env, id) {
 }
 
 function publicAlert(row) {
-  return { id: row.id, cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at, languages: localizedBulletin(row) };
+  return { id: row.id, cveId: row.cve_id, title: row.title, summary: row.summary, recommendedAction: row.recommended_action, evidence: JSON.parse(row.evidence_json), severityScore: row.severity_score, sourceUrl: row.source_url, sourceUpdatedAt: row.source_updated_at, publishedAt: row.published_at, languages: localizedBulletin(row), officialGuidance: officialGuidance(row) };
 }
 
 async function handleAdmin(request, env, url) {
