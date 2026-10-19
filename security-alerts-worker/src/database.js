@@ -67,7 +67,8 @@ export async function collectionStatus(env) {
  const latest=await env.DB.prepare('SELECT * FROM collection_runs ORDER BY started_at DESC,id DESC LIMIT 1').first();
  const last=await env.DB.prepare("SELECT completed_at FROM collection_runs WHERE status='success' ORDER BY completed_at DESC LIMIT 1").first();
  const partial=await env.DB.prepare("SELECT completed_at FROM collection_runs WHERE status='partial' ORDER BY completed_at DESC LIMIT 1").first();
- return {status:latest?.status||'unconfirmed',lastSuccessAt:last?.completed_at||null,lastPartialAt:partial?.completed_at||null,sources:latest?JSON.parse(latest.sources_json):DATABASE_SOURCES.map(s=>({name:s.name,status:'unconfirmed'})),scope:'設定された情報源の収集・保存完了時刻です。全事件の網羅や、この時刻までの被害確認を保証するものではありません。JPCERT/CCのRSSは掲載件数に制限があります。'};
+ const status=latest?.status==='running'&&Date.now()-Date.parse(latest.started_at)>15*60000?'incomplete':latest?.status||'unconfirmed';
+ return {status,lastSuccessAt:last?.completed_at||null,lastPartialAt:partial?.completed_at||null,sources:latest?JSON.parse(latest.sources_json):DATABASE_SOURCES.map(s=>({name:s.name,status:'unconfirmed'})),scope:'設定された情報源の収集・保存完了時刻です。全事件の網羅や、この時刻までの被害確認を保証するものではありません。JPCERT/CCのRSSは掲載件数に制限があります。'};
 }
 
 export async function databaseRecords(env) {

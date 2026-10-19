@@ -5,6 +5,7 @@ export function collectionMessage(collection) {
  if(collection?.status==='partial')message+='\n一部の情報源のみ確認しました（部分確認完了：'+(format(collection.lastPartialAt)||'不明')+'）。最新情報を確認できていません。';
  else if(collection?.status==='failed'||collection?.status==='unavailable')message+='\n最新情報を確認できていません。';
  else if(collection?.status==='running')message+='\n情報収集処理中です。前回の全情報源確認成功日時を表示しています。';
+ else if(collection?.status==='incomplete')message+='\n前回の収集処理が完了していません。最新情報を確認できていません。';
  return message;
 }
 export function selectIncidents(incidents,{query='',sort='urgency',category='',severity='',attack='',period='all'}={},referenceTime=Date.now()) {

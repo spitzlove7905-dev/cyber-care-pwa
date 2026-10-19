@@ -95,3 +95,7 @@ test('Pages API uses only the bound Worker and fails closed without a binding',a
  assert.equal((await onRequestGet({params:{path:['admin','database']},env})).status,404);assert.equal(paths.length,1);
  assert.equal((await onRequestGet({params:{path:['database']},env:{}})).status,503);
 });
+test('interrupted collection never remains labelled as actively running indefinitely',async()=>{
+ const {DB,sql}=database();sql.prepare("INSERT INTO collection_runs(id,started_at,status) VALUES('interrupted',?,'running')").run(new Date(Date.now()-20*60000).toISOString());
+ const status=await collectionStatus({DB});assert.equal(status.status,'incomplete');assert.equal(status.lastSuccessAt,null);assert.match(collectionMessage(status),/最新情報を確認できていません/);
+});
