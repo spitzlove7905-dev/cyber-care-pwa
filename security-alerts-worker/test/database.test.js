@@ -86,8 +86,9 @@ test('600-record historical imports use 12 SQL statements and do not duplicate o
  const countingDB={prepare:DB.prepare,batch:async statements=>{queries+=statements.length;return DB.batch(statements);}};
  const stamp='2026-10-19T09:00:00Z';const records=Array.from({length:600},(_,i)=>({id:String(i).padStart(64,'0'),eventKey:'bulk:'+i,sourceKey:'cisa-kev',sourceUrl:'https://www.cisa.gov/feed',sourceName:'CISA',cve:null,title:'Verified vulnerability '+i,summary:'Official source summary',action:'Update',evidence:'[]',score:100,status:'published',publishedAt:'2026-10-01',sourceUpdatedAt:null,stamp,hash:'revision-1',organization:'Vendor',attackType:'脆弱性',severity:'高',severityReason:'実悪用確認',urgency:3,urgencyReason:'対策が必要',state:'注意',damage:'不明',responseStatus:'不明',confirmation:'公式確認済み'}));
  await storeCandidates({DB:countingDB},records,stamp);assert.equal(queries,12);assert.equal(sql.prepare('SELECT COUNT(*) n FROM alerts').get().n,600);
- sql.prepare("UPDATE alerts SET status='rejected' WHERE event_key='bulk:0'").run();records[0].hash='revision-2';records[1].hash='revision-2';records[1].title='Updated official content';
+ sql.prepare("UPDATE alerts SET status='rejected' WHERE event_key='bulk:0'").run();records[0].hash='revision-2';records[1].hash='revision-2';records[1].title='Updated official content';records[1].publishedAt='2026-10-19';
  await storeCandidates({DB},records,stamp);assert.equal(sql.prepare("SELECT status FROM alerts WHERE event_key='bulk:0'").get().status,'rejected');assert.equal(sql.prepare("SELECT title FROM alerts WHERE event_key='bulk:1'").get().title,'Updated official content');assert.equal(sql.prepare('SELECT COUNT(*) n FROM alerts').get().n,600);
+ assert.equal(sql.prepare("SELECT source_published_at FROM alerts WHERE event_key='bulk:1'").get().source_published_at,'2026-10-01');
 });
 test('Pages API uses only the bound Worker and fails closed without a binding',async()=>{
  const paths=[];const env={SECURITY_ALERTS:{fetch:async request=>{paths.push(new URL(request.url).pathname);return Response.json({status:'unconfirmed'});}}};
