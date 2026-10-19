@@ -1,5 +1,7 @@
 # Cyber Care Security Alerts Worker
 
+> Current database release: see [SECURITY-DATABASE.md](../SECURITY-DATABASE.md) for the current sources, 90-day import, collection status, revised delivery rules, and deployment instructions. The sections below record the initial foundation phase; their disabled-publication/Buffer defaults and 30-day window are historical. Existing production vars and bindings in wrangler.jsonc are preserved. Do not create a replacement database or reset existing Secrets when applying this release.
+
 This is an independent Cloudflare Worker for the security-alert pipeline. It does **not** change the existing Pages PWA and should not be deployed to the Pages project.
 
 ## Safety defaults
