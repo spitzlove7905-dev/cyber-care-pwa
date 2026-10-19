@@ -49,7 +49,7 @@ export async function saveDetails(env,id,details,source,checkedAt,curated=false)
 
 export async function ingestAdvisories(env,fetcher=fetch) {
  const source=DATABASE_SOURCES[1];
- const response=await fetcher(source.url,{signal:AbortSignal.timeout(15000),redirect:'error'});
+ const response=await fetcher(source.url,{signal:AbortSignal.timeout(15000),redirect:'manual'});
  const items=parseAdvisories(await readLimited(response,2_000_000));
  const stamp=new Date().toISOString();const records=[];
  for(const item of items){

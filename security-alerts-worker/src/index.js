@@ -73,7 +73,7 @@ async function ingestCisaKev(env, source) {
   const headers = { accept: 'application/json' };
   if (savedState?.etag) headers['if-none-match'] = savedState.etag;
   if (savedState?.last_modified) headers['if-modified-since'] = savedState.last_modified;
-  const response = await fetch(source.url, { headers, signal: AbortSignal.timeout(15_000), redirect:'error' });
+  const response = await fetch(source.url, { headers, signal: AbortSignal.timeout(15_000), redirect:'manual' });
   const now = new Date().toISOString();
 
   const needsBackfill=await env.DB.prepare("SELECT id FROM collection_runs WHERE status='success' LIMIT 1").first();
@@ -84,7 +84,7 @@ async function ingestCisaKev(env, source) {
   if (!response.ok&&response.status!==304) throw new Error(`${source.key} returned HTTP ${response.status}`);
 
   // Ignore old conditional headers for the first historical import.
-  const payload = JSON.parse(await readLimited(response.status===304?await fetch(source.url,{signal:AbortSignal.timeout(15000),redirect:'error'}):response));
+  const payload = JSON.parse(await readLimited(response.status===304?await fetch(source.url,{signal:AbortSignal.timeout(15000),redirect:'manual'}):response));
   if (!Array.isArray(payload.vulnerabilities)||!payload.vulnerabilities.length||payload.vulnerabilities.some(raw=>!candidateFromKev(raw)||!/^\d{4}-\d{2}-\d{2}$/.test(raw.dateAdded))) throw new Error('Unexpected CISA KEV response');
   const records=[];
   for(const raw of payload.vulnerabilities){
