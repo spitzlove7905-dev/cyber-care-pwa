@@ -61,8 +61,9 @@
 
   const evidenceField = document.createElement('div');
   evidenceField.className = 'field';
-  evidenceField.innerHTML = `<label for="evidenceFiles">スクリーンショット・画像（任意）</label><input id="evidenceFiles" type="file" accept="image/*" multiple><p class="sub" style="font-size:.84rem;margin:7px 0">最大5枚、1枚8MBまで。画像はこの端末のブラウザ内だけに保存され、PDFにも表示できます。</p><div id="imagePreview" class="image-preview"></div>`;
+  evidenceField.innerHTML = `<label for="evidenceFiles">スクリーンショット・画像（任意）</label><button type="button" class="ghost" id="chooseEvidence">スクリーンショット・画像を選択</button><input id="evidenceFiles" type="file" accept="image/*" multiple hidden><p class="sub" style="font-size:.84rem;margin:7px 0">最大5枚、1枚8MBまで。画像はこの端末のブラウザ内だけに保存され、PDFにも表示できます。</p><div id="imagePreview" class="image-preview"></div>`;
   dateField.closest('.field').after(evidenceField);
+  evidenceField.querySelector('#chooseEvidence').onclick = () => evidenceField.querySelector('#evidenceFiles').click();
 
   const style = document.createElement('style');
   style.textContent = `.image-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.image-preview img,.record-images img{width:92px;height:70px;object-fit:cover;border:1px solid var(--line);border-radius:9px}.record-images{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.record small{color:var(--muted);word-break:break-all}.file-warning{color:#8b5c19;font-size:.9rem}`;
