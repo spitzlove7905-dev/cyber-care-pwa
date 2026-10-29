@@ -32,7 +32,7 @@ function card(r){
  el.append(node('h3','情報源'),sources);return el;
 }
 function paint(){const results=$('results');results.replaceChildren(...matches.slice(0,visible).map(card));$('resultCount').textContent=matches.length+'件（'+Math.min(visible,matches.length)+'件表示）';$('more').hidden=visible>=matches.length;if(!matches.length)results.append(node('p',incidents.length?'条件に一致する情報がありません。':'公開済み情報はまだありません。収集状態を確認してください。'));}
-function filter(){const options=Object.fromEntries(['query','sort','category','severity','attack','period'].map(id=>[id,$(id).value]));matches=selectIncidents(incidents,options,reference);visible=30;paint();}
+function filter(){const options=Object.fromEntries(['query','matchMode','sort','category','severity','attack','period'].map(id=>[id,$(id).value]));matches=selectIncidents(incidents,options,reference);visible=30;paint();}
 $('filters').addEventListener('submit',e=>e.preventDefault());let timer;$('filters').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(filter,120);});$('filters').addEventListener('change',filter);$('filters').addEventListener('reset',()=>setTimeout(filter,0));$('more').addEventListener('click',()=>{visible+=30;paint();});
 fetch('/api/security/database',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
  incidents=data.incidents;reference=Date.now();$('securityCheckedAt').textContent=collectionMessage(data.collection);$('collectionScope').textContent=data.collection.scope;

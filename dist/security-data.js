@@ -8,13 +8,16 @@ export function collectionMessage(collection) {
  else if(collection?.status==='incomplete')message+='\n前回の収集処理が完了していません。最新情報を確認できていません。';
  return message;
 }
-export function selectIncidents(incidents,{query='',sort='urgency',category='',severity='',attack='',period='all'}={},referenceTime=Date.now()) {
+export function searchTerms(query='') {
+ return Array.from(String(query).matchAll(/"((?:\\.|[^"\\])*)"|(\S+)/g),match=>match[1]===undefined?match[2]:match[1].replace(/\\(["\\])/g,'$1')).filter(term=>term.trim());
+}
+export function selectIncidents(incidents,{query='',matchMode='and',sort='urgency',category='',severity='',attack='',period='all'}={},referenceTime=Date.now()) {
  const normalized=value=>String(value||'').normalize('NFKC').toLocaleLowerCase('ja');
- const terms=normalized(query).split(/\s+/).filter(Boolean);
+ const terms=searchTerms(query).map(normalized);
  const age=r=>referenceTime-Date.parse(r.publishedAt||'');
  const filtered=incidents.filter(r=>{
   const haystack=normalized([r.title,r.organization,r.cve,r.attackType,r.summary,r.action,r.damage,r.responseStatus].join(' '));
-  if(!terms.every(term=>haystack.includes(term)))return false;
+  if(terms.length&&!(matchMode==='or'?terms.some(term=>haystack.includes(term)):terms.every(term=>haystack.includes(term))))return false;
   if(severity&&r.severity!==severity||attack&&r.attackType!==attack)return false;
   if(category==='latest'&&!(age(r)>=0&&age(r)<=7*86400000))return false;
   if(category==='past'&&!(age(r)>7*86400000))return false;

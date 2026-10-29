@@ -6,6 +6,10 @@ export function databaseLanguage(search='',storage){
  return 'ja';
 }
 export const english={
+ '検索方式':'Search mode','幅広く探す（OR検索）':'Search broadly (OR)','絞り込んで探す（AND検索）':'Narrow results (AND)',
+ '自分の端末に関係する情報を探す':'Find information relevant to your device',
+ '質問で入力した情報を複数選択できます。選択中は色が変わり、もう一度押すと解除できます。入力値は外部送信しません。検索結果は文字列の一致であり、影響の有無を判定するものではありません。':'Select multiple keywords from your answers. Selected buttons change color; tap again to deselect. Your input is not transmitted. Results reflect text matches, not a determination that your device is affected.',
+ '端末情報は未入力、または削除済みです。質問画面で入力できます。':'Device information is empty or has expired. Enter it in the question flow.',
  '重大セキュリティ情報データベース | Cyber Care':'Major Security Information Database | Cyber Care',
  '← Cyber Careへ戻る':'← Back to Cyber Care','重大セキュリティ情報':'Major Security Information','データベース':'Database',
  '概要':'Summary','利用者が取るべき対策':'Actions users should take','対象企業・組織':'Affected company / organization','発生日':'Incident date','情報公開日':'Publication date','最終更新日（データベース）':'Database last updated','情報源の更新日':'Source last updated','確認区分':'Confirmation status','重大度の根拠':'Severity rationale','緊急性の根拠':'Urgency rationale','被害状況':'Known impact','現在の対応状況':'Current response','情報源':'Sources','不明':'Unknown',

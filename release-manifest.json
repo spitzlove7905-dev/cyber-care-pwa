@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "cc-ui-swfix-20261029-local-1",
+  "release": "cc-search-20261029-local-1",
   "kind": "candidate",
-  "githubBaseCommit": "51e0d9c1997cdc1cb024af427cabb84338de064c",
+  "githubBaseCommit": "9b45292305a3902d61e6e417332645de8d556ff7",
   "project": "cyber-care-pwa",
   "publishDirectory": "dist",
   "functionsDirectory": "functions",
@@ -37,7 +37,7 @@
     },
     {
       "path": "dist/device-reuse.js",
-      "sha256": "9087e32d9edb9ce5cae8e690d30515fd752251afde5591ab610a325ad9fbd9ea"
+      "sha256": "a99a3e18d0adb84749ae747cc269d8164121a94c3533a162cae6c28c84cbfafa"
     },
     {
       "path": "dist/device-session.js",
@@ -73,7 +73,7 @@
     },
     {
       "path": "dist/runtime-config.js",
-      "sha256": "cea441ecbcf5afd72f53db294c23f930f41cfe5c1831858ea336b5ecbfad55d1"
+      "sha256": "c56ffaf870b36180d855d8df1102ef7edb712078e67ccbe1a793c8540bb4ba87"
     },
     {
       "path": "dist/safe-storage.js",
@@ -81,23 +81,23 @@
     },
     {
       "path": "dist/security-data.js",
-      "sha256": "d1dc1ccafeb762c7ba5c83e4332b144727afb378ff29e4272f93de63bd755995"
+      "sha256": "4effb2eaeb6a18d767a113881c0cd8052fbae705de678c60ac53c6dd4883d6f2"
     },
     {
       "path": "dist/security-database-language.js",
-      "sha256": "4a133bd1a092c55290309320e50b015deace99364dc59a8a586ffcac46e45ef0"
+      "sha256": "80bd806c9b4a51b123d933af709f18b939df712304cfcfd37cba2fbcea45c60a"
     },
     {
       "path": "dist/security-database.css",
-      "sha256": "fb199da019c975c6a9ace2750cfb47b5c6cb96218a7cde975b15d2d1f67a44fc"
+      "sha256": "0a1f9f492aaff728db919f2e2265b5509c00d596be1bc957c0b19727db22a812"
     },
     {
       "path": "dist/security-database.html",
-      "sha256": "97942454174cc23cf43c14d6fd7743273c1356f940d33e9eae5e09b7ce827400"
+      "sha256": "347a1f2956e1fc5711d65aa509ef196b08cf342c2d5ae445c131275b3ac3b50b"
     },
     {
       "path": "dist/security-database.js",
-      "sha256": "137145b9fdf9a98fb6306c4fa49a6498321b58fc7ff038b3eacc1fc457aa7b59"
+      "sha256": "d6e8f8e4760843308b6935124e673a6f03846afca567e5c7c213b5b16b6eb59e"
     },
     {
       "path": "dist/security-status.js",
@@ -105,7 +105,7 @@
     },
     {
       "path": "dist/sw.js",
-      "sha256": "10191d8403cf8dc4365d644d52a1f0bf6c9f111e09d85cafcbdbe7b78d0408eb"
+      "sha256": "1680a438e3b463a85ca5ec199433788cb4f44180fb96220886789f0ee5508d3c"
     },
     {
       "path": "functions/api/security/[[path]].js",
