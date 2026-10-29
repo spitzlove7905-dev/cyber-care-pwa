@@ -1,1 +1,1 @@
-window.CCConfig=Object.freeze({"mode":"production","enabled":true,"allowedOrigins":["https://cyber-care-pwa.pages.dev"],"databaseName":"cyber-care-safe-v1","draftKey":"cc-consultation-safe-v1","enableSW":true,"release":"cc-ui-20261029-local-1"});
+window.CCConfig=Object.freeze({"mode":"production","enabled":true,"allowedOrigins":["https://cyber-care-pwa.pages.dev"],"databaseName":"cyber-care-safe-v1","draftKey":"cc-consultation-safe-v1","enableSW":true,"release":"cc-candidate-20261029-release-ready-1"});
