@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "cc-candidate-20261029-release-ready-1",
+  "release": "cc-ui-swfix-20261029-local-1",
   "kind": "candidate",
-  "githubBaseCommit": "ce6b1db6d52efc43865a7326650ce78a00ca5e48",
+  "githubBaseCommit": "51e0d9c1997cdc1cb024af427cabb84338de064c",
   "project": "cyber-care-pwa",
   "publishDirectory": "dist",
   "functionsDirectory": "functions",
@@ -45,7 +45,7 @@
     },
     {
       "path": "dist/enhancements.js",
-      "sha256": "d32cef2818c5db7362bc42d00c9dcb05170f3e672e10216a2556e1cd3401dba9"
+      "sha256": "000b3f88a5f990c54eb20fb1c5bfccc32dcc9fef86d43e79ddb65ccacea0b14b"
     },
     {
       "path": "dist/favicon.svg",
@@ -53,7 +53,7 @@
     },
     {
       "path": "dist/index.html",
-      "sha256": "4304b5bf163c9e152fa5633b768fcd348d94a2c5d189ce10082c04a86c02ae8d"
+      "sha256": "72925cedddc6c84ce45c299cbbe90781abe11cda5abd4a3501d5e16c36094b66"
     },
     {
       "path": "dist/manifest.webmanifest",
@@ -73,7 +73,7 @@
     },
     {
       "path": "dist/runtime-config.js",
-      "sha256": "a2a31b29a03646b5e7c10305d17c3090fa471a0e1fc17fd9da494823b7a0975e"
+      "sha256": "cea441ecbcf5afd72f53db294c23f930f41cfe5c1831858ea336b5ecbfad55d1"
     },
     {
       "path": "dist/safe-storage.js",
@@ -105,7 +105,7 @@
     },
     {
       "path": "dist/sw.js",
-      "sha256": "bb027a661fee65457ff247cf586057ef72bb25c72aca3e4ae2894b48ce07fb2b"
+      "sha256": "10191d8403cf8dc4365d644d52a1f0bf6c9f111e09d85cafcbdbe7b78d0408eb"
     },
     {
       "path": "functions/api/security/[[path]].js",
