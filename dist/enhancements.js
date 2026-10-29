@@ -1,10 +1,63 @@
 /* Device-local image evidence and printable evidence records. */
-(() => {
+(async () => {
+  const status = document.querySelector('#safetyStatus');
+  const reportError = error => { status.textContent = '処理を完了できませんでした。入力と旧データは保持しています。' + (error.message || error); };
+  try { await window.CCSafe.init(); } catch(error) { reportError(error); return; }
+  window.addEventListener('cc-storage-error',()=>{reportError(new Error('保存領域を再確認してください')); document.querySelector('#saveLog').disabled=true;});
+  for (const id of ['saveLog','nextFromLog','openStatement','export','pdfLog']) document.getElementById(id).disabled=false;
+  const records = () => window.CCSafe.records();
+  let busy = false;
+  const guarded = async action => {
+    if(busy) return false;
+    busy=true; status.textContent='';
+    const controls=[...document.querySelectorAll('#log input,#log select,#log textarea,#log button,#clearData')];
+    const before=controls.map(c=>c.disabled);
+    controls.forEach(c=>c.disabled=true);
+    try { return await action(); } catch(error) { reportError(error); return false; }
+    finally { controls.forEach((c,i)=>c.disabled=before[i]);busy=false; }
+  };
+  document.querySelector('#log').addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+  // Deletion is deliberately unavailable in this migration review copy.
+  document.querySelector('#clearData').title='旧データ保護のため、この開発コピーでは消去できません';
+  document.querySelector('#export').onclick=()=>guarded(async()=>{
+    const backup=await window.CCSafe.exportFull(document.querySelector('#statementText').value), link=document.createElement('a');
+    link.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'}));
+    link.download='cyber-care-development-with-images.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  });
+  const restoreInput=document.createElement('input');restoreInput.type='file';restoreInput.accept='.json,application/json';restoreInput.id='restoreBackup';
+  const restoreLabel=document.createElement('label');restoreLabel.htmlFor='restoreBackup';restoreLabel.textContent='完全バックアップを復元（既存記録は保持・重複IDは中止）';
+  document.querySelector('#export').after(restoreLabel,restoreInput);
+  restoreInput.onchange=()=>guarded(async()=>{
+    const file=restoreInput.files[0];if(!file)return;if(file.size>180*1024*1024)throw Error('バックアップが大きすぎます');
+    const result=await window.CCSafe.restore(JSON.parse(await file.text()));
+    status.textContent='復元を完了しました。追加記録 '+result.added+'件。再読込して相談文と画像を確認してください。';
+    try { await window.CCSafe.list();await renderRecordsWithImages();if(!dateEdited)loadRecordedWhen();
+    const imported=await window.CCSafe.consultation();draftState=imported.stored===null?{text:imported.current,previous:[]}:JSON.parse(imported.stored);draftState.text=imported.current;draftRaw=localStorage.getItem(draftKey);document.querySelector('#statementText').value=imported.current;
+    } catch(error) {status.textContent='復元保存は完了しました。表示の更新に失敗したため、再復元せず再読込してください。';}
+  });
   const $ = selector => document.querySelector(selector);
   const oldWhen = $('#when');
   const dateField = document.createElement('input');
   dateField.id = 'when'; dateField.type = 'datetime-local'; dateField.setAttribute('aria-label', '日時');
   oldWhen.replaceWith(dateField);
+  // Keep stored wall-clock dates as entered; never reinterpret them in another timezone.
+  let dateEdited=false, legacyWhen='';
+  const dateNote=document.createElement('p');dateNote.className='sub';dateField.after(dateNote);
+  const normalizedWhen=value=>{
+    const m=String(value||'').match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if(!m)return '';const [,y,mo,d,h,mi,se='00']=m;
+    const parts=[y,mo,d,h,mi,se].map(Number),dt=new Date(Date.UTC(...[parts[0],parts[1]-1,...parts.slice(2)]));
+    if(parts[0]<1000||dt.getUTCFullYear()!==parts[0]||dt.getUTCMonth()+1!==parts[1]||dt.getUTCDate()!==parts[2]||dt.getUTCHours()!==parts[3]||dt.getUTCMinutes()!==parts[4]||dt.getUTCSeconds()!==parts[5])return '';
+    return y+'-'+mo.padStart(2,'0')+'-'+d.padStart(2,'0')+'T'+h.padStart(2,'0')+':'+mi+(m[6]?':'+se:'');
+  };
+  window.CCIncidentDate=()=>dateField.value||legacyWhen;
+  const announceWhen=()=>window.dispatchEvent(new Event('cc-incident-date'));
+  function loadRecordedWhen(){
+    const raw=String(records()[0]?.when||'');dateField.value=normalizedWhen(raw);legacyWhen=dateField.value?'':raw;
+    dateNote.textContent=legacyWhen?'保存された日時：'+legacyWhen+'（元の表記を保持。変更する場合は上の日時欄から入力）':'再読込時は最新の記録の発生日時を表示します。';announceWhen();
+  }
+  for(const name of ['input','change'])dateField.addEventListener(name,()=>{dateEdited=true;legacyWhen='';dateNote.textContent='';announceWhen();});
+  loadRecordedWhen();
 
   const evidenceField = document.createElement('div');
   evidenceField.className = 'field';
@@ -15,26 +68,7 @@
   style.textContent = `.image-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.image-preview img,.record-images img{width:92px;height:70px;object-fit:cover;border:1px solid var(--line);border-radius:9px}.record-images{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.record small{color:var(--muted);word-break:break-all}.file-warning{color:#8b5c19;font-size:.9rem}`;
   document.head.append(style);
 
-  const db = new Promise((resolve, reject) => {
-    const request = indexedDB.open('cyber-care-evidence', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('images', { keyPath: 'id' });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  const getAllImages = async recordId => new Promise(async (resolve, reject) => {
-    const store = (await db).transaction('images', 'readonly').objectStore('images');
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result.filter(x => x.recordId === recordId));
-    request.onerror = () => reject(request.error);
-  });
-  const putImages = async (recordId, files) => {
-    const database = await db;
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction('images', 'readwrite');
-      files.forEach((file, index) => tx.objectStore('images').put({ id: `${recordId}-${index}`, recordId, name: file.name, blob: file }));
-      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-    });
-  };
+  const getAllImages = window.CCSafe.images;
   const esc = value => String(value).replace(/[&<>'"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[c]));
   const sanitize = value => String(value).replace(/(password|passcode|パスワード)\s*[:：=]\s*\S+/gi,'[secret removed]').replace(/(?<!\d)(?:\d[ -]*?){13,19}(?!\d)/g,'[card-number-like text removed]').replace(/(?<!\d)\d{6}(?!\d)/g,'[one-time-code-like text removed]').trim().slice(0,500);
   const toast = message => { const node = $('#toast'); node.textContent = message; node.classList.add('show'); setTimeout(() => node.classList.remove('show'), 3000); };
@@ -46,7 +80,7 @@
   });
 
   async function renderRecordsWithImages() {
-    const data = JSON.parse(localStorage.getItem('cc-records') || '[]');
+    const data = records();
     const container = $('#records');
     if (!data.length) { container.innerHTML = ''; return; }
     container.innerHTML = '';
@@ -59,34 +93,33 @@
       container.append(node);
     }
   }
-  window.renderRecords = renderRecordsWithImages;
-  renderRecordsWithImages();
+  window.renderRecords = () => renderRecordsWithImages().catch(reportError);
+  $('#openLog').onclick=async()=>{try {await window.CCSafe.list();await renderRecordsWithImages();$('#log').showModal();}catch(error){reportError(error);}};
+  renderRecordsWithImages().catch(reportError);
 
-  const savePreparedRecord = async ({ showToast = true } = {}) => {
+  const savePreparedRecord = async ({ showToast = true } = {}) => guarded(async () => {
     const raw = $('#event').value.trim();
     if (!raw) { if (showToast) toast(document.documentElement.lang === 'ja' ? '何が起きたかを入力してください。' : 'Please describe what happened.'); return false; }
     const files = [...$('#evidenceFiles').files];
     if (files.length > 5 || files.some(file => file.size > 8 * 1024 * 1024)) { if (showToast) toast(document.documentElement.lang === 'ja' ? '画像は5枚まで、1枚8MBまでです。' : 'Use up to 5 images, 8MB each.'); return false; }
     const place = $('#place').value, source = $('#source').value, response = $('#response').value, request = $('#request').value;
     const prepared = [`どこで：${place}`, `誰から・どの経路：${source}`, `何が起きたか：${raw}`, `どのように対応したか：${response}`, `何を相談したいか：${request}`].filter(line => !line.endsWith('：')).join('\n');
-    const when = toLocal(dateField.value), event = sanitize(prepared), saved = new Date().toLocaleString(), id = crypto.randomUUID();
+    const when = legacyWhen || toLocal(dateField.value), event = sanitize(prepared), saved = new Date().toLocaleString(), id = crypto.randomUUID();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode([when, event].join('\n')));
     const sha = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
-    const records = JSON.parse(localStorage.getItem('cc-records') || '[]');
-    records.unshift({ id, event, when, saved, sha, imageCount: files.length });
-    localStorage.setItem('cc-records', JSON.stringify(records));
-    await putImages(id, files);
-    $('#event').value = ''; $('#place').value = ''; $('#source').value = ''; $('#response').value = ''; $('#request').value = ''; dateField.value = ''; $('#evidenceFiles').value = ''; $('#imagePreview').innerHTML = '';
-    await renderRecordsWithImages(); if (showToast) toast(document.documentElement.lang === 'ja' ? '画像を含む記録を、この端末内に保存しました。' : 'Your record and images were saved on this device.'); return true;
-  };
+    await window.CCSafe.save({ id, event, when, saved, sha }, files);
+    $('#event').value = ''; $('#place').value = ''; $('#source').value = ''; $('#response').value = ''; $('#request').value = ''; announceWhen(); $('#evidenceFiles').value = ''; $('#imagePreview').innerHTML = '';
+    try { await renderRecordsWithImages(); } catch(error) { status.textContent='保存は完了しましたが、表示に失敗しました。再保存せず再読込してください。'; }
+    if (showToast) toast(document.documentElement.lang === 'ja' ? '画像を含む記録を、この端末内に保存しました。' : 'Your record and images were saved on this device.'); return true;
+  });
   $('#saveLog').onclick = () => savePreparedRecord();
 
   async function printableEvidence() {
-    const records = JSON.parse(localStorage.getItem('cc-records') || '[]');
+    const savedRecords = records();
     const parts = [];
-    for (const record of records) {
+    for (const record of savedRecords) {
       const images = record.id ? await getAllImages(record.id) : [];
-      const encoded = await Promise.all(images.map(async item => ({ name: item.name, src: await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(item.blob); }) })));
+      const encoded = await Promise.all(images.map(async item => ({ name: item.name, src: await new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror=()=>reject(reader.error); reader.onabort=()=>reject(Error('画像の読込みが中止されました')); reader.readAsDataURL(item.blob); }) })));
       parts.push({ record, images: encoded });
     }
     const body = parts.length ? parts.map(({record, images}, index) => `<section><h2>${index + 1}. ${esc(record.when || record.saved)}</h2><p>${esc(record.event).replace(/\n/g,'<br>')}</p><small>SHA-256: ${esc(record.sha || 'not recorded')}</small>${images.length ? `<div class="images">${images.map(image => `<figure><img src="${image.src}" alt="${esc(image.name)}"><figcaption>${esc(image.name)}</figcaption></figure>`).join('')}</div>` : ''}</section>`).join('') : '<p>保存した記録はありません。</p>';
@@ -97,22 +130,8 @@
     await Promise.all([...win.document.images].map(image => image.complete ? Promise.resolve() : new Promise(resolve => { image.onload = image.onerror = resolve; })));
     win.focus(); win.print();
   }
-  $('#pdfLog').onclick = printableEvidence;
+  $('#pdfLog').onclick = () => guarded(printableEvidence);
 
-  $('#clearData').onclick = async () => {
-    const japanese = document.documentElement.lang === 'ja';
-    if (!confirm(japanese ? 'この端末に保存した記録と画像をすべて消去しますか？' : 'Erase all notes and images saved on this device?')) return;
-    const database = await db;
-    await new Promise((resolve, reject) => {
-      const tx = database.transaction('images', 'readwrite');
-      tx.objectStore('images').clear();
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-    localStorage.removeItem('cc-records');
-    await renderRecordsWithImages();
-    toast(japanese ? 'この端末の記録と画像を消去しました' : 'Notes and images on this device were erased');
-  };
   // Replace the plain consultation text with a calm, local-only speaking guide.
   const statementTargetField = $('#statementTarget').closest('.field');
   const modeField = document.createElement('div');
@@ -123,7 +142,7 @@
   overviewButton.id = 'viewStatement'; overviewButton.type = 'button'; overviewButton.className = 'ghost';
   $('#copyStatement').before(overviewButton);
 
-  const consultationRecords = () => JSON.parse(localStorage.getItem('cc-records') || '[]');
+  const consultationRecords = () => records();
   const consultationLanguage = () => document.documentElement.lang === 'en' ? 'en' : 'ja';
   const consultationFacts = language => {
     const records = consultationRecords();
@@ -143,7 +162,37 @@
     if (phone) return `電話で伝える内容（${destination}への相談準備）\n\n最初に\n「サイバー上の件で相談があります。確認できている事実をお伝えしてもよろしいでしょうか。」\n\n確認できている事実\n${facts}\n\n相談したいこと\n「今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。」\n\n不明な点は「現時点では不明です」と伝えます。`;
     return `${destination}への相談文（下書き）\n\nサイバー上のトラブルまたは不正利用の可能性について相談します。\n\n【確認できている事実】\n${facts}\n\n【相談したいこと】\n今後必要な対応、証拠の残し方、すぐに行うべきことを教えてください。\n\n不明な点は現時点では不明です。これは相談準備用の下書きであり、正式な被害届や公的機関の様式ではありません。`;
   };
-  const refreshConsultation = () => { $('#statementText').value = consultationText(); };
+  const draftKey=window.CCConfig.draftKey;
+  let draftRaw=localStorage.getItem(draftKey);
+  let draftState;
+  try { const restored=await window.CCSafe.consultation();draftState=restored.stored===null ? (restored.restored!==true&&restored.current===''?null:{text:restored.current,previous:[]}) : JSON.parse(restored.stored);if(draftState)draftState.text=restored.current; if(draftRaw!==null && (!draftState || typeof draftState.text!=='string' || !Array.isArray(draftState.previous)))throw Error('相談文の保存形式が不正です。元データは保持しています'); }
+  catch(error) { reportError(error); $('#openStatement').disabled=true; return; }
+  const storeDraft = text => {
+    if(localStorage.getItem(draftKey)!==draftRaw)throw Error('別の画面で相談文が更新されました。この入力をコピーして保管してください');
+    const next={text,previous:draftState?.previous || [],revision:crypto.randomUUID()};
+    const raw=JSON.stringify(next);localStorage.setItem(draftKey,raw);draftRaw=raw;draftState=next;
+  };
+  $('#statementText').value=draftState?.text ?? '';
+  $('#statementText').addEventListener('input',()=>{try{storeDraft($('#statementText').value);}catch(error){reportError(error);}});
+  window.addEventListener('beforeunload',event=>{
+    if(busy || $('#statementText').value !== (draftState?.text ?? '')){event.preventDefault();event.returnValue='';}
+  });
+  const refreshConsultation = () => {
+    if(draftState!==null)return;
+    try {storeDraft(consultationText());$('#statementText').value=draftState.text;}catch(error){reportError(error);}
+  };
+  const regenerate=document.createElement('button');regenerate.type='button';regenerate.id='regenerateStatement';regenerate.textContent='相談文を作り直す / Regenerate';
+  $('#statementText').after(regenerate);
+  regenerate.onclick=()=>{
+    if(!confirm('現在の文面を退避して、新しく作り直しますか？ / Keep a backup and regenerate?'))return;
+    try {
+      if(localStorage.getItem(draftKey)!==draftRaw)throw Error('別の画面の更新を検知しました');
+      const next={revision:crypto.randomUUID(),text:consultationText(),previous:[...(draftState?.previous || []),{text:$('#statementText').value,at:new Date().toISOString()}]};
+      const raw=JSON.stringify(next);localStorage.setItem(draftKey,raw);draftRaw=raw;draftState=next;$('#statementText').value=next.text;
+    } catch(error) {reportError(error);}
+  };
+  const downloadDraft=document.createElement('button');downloadDraft.type='button';downloadDraft.textContent='現在の相談文を保存 / Save current draft';
+  regenerate.after(downloadDraft);downloadDraft.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([$('#statementText').value],{type:'text/plain;charset=utf-8'}));a.download='consultation-draft.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
   const localizeConsultation = () => {
     const english = consultationLanguage() === 'en';
     $('#openLog').querySelector('h3').textContent = english ? 'Record & prepare 5W1H' : '記録・5W1Hの相談準備';
@@ -161,9 +210,9 @@
     const description = $('#openStatement').querySelector('p');
     if (description) description.textContent = english ? 'Create a clear phone guide or written draft from your notes.' : '記録から、電話や相談フォームで伝える順番を整えます。';
   };
-  $('#openStatement').onclick = () => { localizeConsultation(); refreshConsultation(); $('#statement').showModal(); };
+  $('#openStatement').onclick = async () => { try {await window.CCSafe.list();localizeConsultation(); refreshConsultation(); $('#statement').showModal();}catch(error){reportError(error);} };
   const showStatementOverview = () => {
-    const text = $('#statementText').value || consultationText();
+    const text = $('#statementText').value;
     $('#statementOverviewText').textContent = text;
     $('#statementOverview').showModal();
     requestAnimationFrame(() => {
@@ -175,34 +224,9 @@
   };
   overviewButton.onclick = showStatementOverview;
   $('#copyOverview').onclick = async () => { await navigator.clipboard.writeText($('#statementOverviewText').textContent); toast(consultationLanguage() === 'en' ? 'Copied' : 'コピーしました'); };
-  $('#pdfOverview').onclick = () => savePdf(consultationLanguage() === 'en' ? 'Cyber Care — Consultation request' : 'Cyber Care — 相談文', $('#statementOverviewText').textContent || consultationText());
-  // Keep the 5W1H step available even while an older PWA cache is refreshing briefing.js.
-  const openBriefFallback = () => {
-    const english = consultationLanguage() === 'en';
-    const records = consultationRecords();
-    const labels = english
-      ? { title:'Review your consultation (5W1H)', note:'Review this browser-local draft before you contact a support service.', empty:'There are no saved notes yet. Return to Step 1 to create a record, or enter what you know below and continue.', manualLabel:'5W1H notes (what you know so far)', manualPlaceholder:'Example: when / where or who / what happened / what you did / what you need help with', previous:'Back to Step 1: Record', copy:'Copy', download:'Save text', print:'Print / save PDF', next:'Step 3: Create a consultation note', copied:'Copied' }
-      : { title:'相談内容の最終確認（5W1H）', note:'この端末に保存した記録から作った下書きです。内容を確認してから相談先を選びます。', empty:'まだ記録がありません。ステップ1へ戻って記録を作るか、わかる範囲の5W1Hを下に直接入力して進められます。', manualLabel:'わかる範囲の5W1Hメモ', manualPlaceholder:'例：いつ／どこで・誰から／何が起きたか／自分で行った対応／相談したいこと', previous:'ステップ1：記録へ戻る', copy:'コピー', download:'テキスト保存', print:'印刷 / PDF保存', next:'ステップ3：相談文を作る', copied:'コピーしました' };
-    const facts = records.map((record, index) => `${index + 1}. ${record.when || record.saved}\n   ${record.event}`).join('\n');
-    const draft = english
-      ? `Consultation preparation note (5W1H)\n\nWhen:\n${facts}\n\nWhere / who / route:\nI will share the details I know with the support service.\n\nWhat happened:\n${facts}\n\nHow I responded:\nI saved a record on this device.\n\nWhy I am concerned:\nI would like to confirm whether this may involve unauthorized use or another cyber incident.\n\nWhat I need help with:\nPlease advise on the appropriate contact point, evidence to preserve, and any action needed immediately.`
-      : `相談準備メモ（5W1H）\n\nいつ：\n${facts}\n\nどこで・誰から・どの経路：\nわかる範囲で相談先に伝えます。\n\n何が起きたか：\n${facts}\n\nどのように対応したか：\nこの端末内に記録を保存しました。\n\nなぜ心配しているか：\n不正利用やサイバー上のトラブルの可能性を確認したいです。\n\n相談したいこと：\n適切な相談先、追加で保全すべき証拠、すぐに必要な対応を教えてください。`;
-    $('#briefTitle').textContent = labels.title; $('#briefNote').textContent = labels.note; $('#briefBar').style.width = '100%';
-    $('#briefStep').innerHTML = records.length ? `<div class="field"><textarea id="briefResult" aria-label="Consultation preparation note"></textarea></div>` : `<div class="hint">${esc(labels.empty)}</div><div class="field"><label for="briefResult">${esc(labels.manualLabel)}</label><textarea id="briefResult" aria-label="Consultation preparation note" placeholder="${esc(labels.manualPlaceholder)}"></textarea></div>`;
-    $('#briefActions').innerHTML = records.length ? `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button><button class="ghost" type="button" id="briefCopy">${esc(labels.copy)}</button><button class="ghost" type="button" id="briefDownload">${esc(labels.download)}</button><button class="ghost" type="button" id="briefPrint">${esc(labels.print)}</button><button class="secondary" type="button" id="briefHelp">${esc(labels.next)}</button>` : `<button class="ghost" type="button" id="briefPreviousStep">${esc(labels.previous)}</button><button class="secondary" type="button" id="briefHelp">${esc(labels.next)}</button>`;
-    $('#brief').showModal(); $('#briefPreviousStep').onclick = () => { $('#brief').close(); $('#openLog').click(); };
-    $('#briefResult').value = records.length ? draft : (sessionStorage.getItem('cc-brief-draft') || '');
-    if (!records.length) {
-      $('#briefHelp').onclick = () => { sessionStorage.setItem('cc-brief-draft', $('#briefResult').value); $('#brief').close(); $('#openStatement').click(); };
-      return;
-    }
-    $('#briefCopy').onclick = async () => { await navigator.clipboard.writeText($('#briefResult').value); toast(labels.copied); };
-    $('#briefDownload').onclick = () => { const blob = new Blob([$('#briefResult').value], {type:'text/plain;charset=utf-8'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'cyber-care-consultation-note.txt'; link.click(); URL.revokeObjectURL(link.href); };
-    $('#briefPrint').onclick = () => { const win = window.open('', '_blank'); if (!win) return; win.document.write(`<pre>${esc($('#briefResult').value)}</pre>`); win.document.close(); win.focus(); win.print(); };
-    $('#briefHelp').onclick = () => { sessionStorage.setItem('cc-brief-draft', $('#briefResult').value); $('#brief').close(); $('#openStatement').click(); };
-  };
+  $('#pdfOverview').onclick = () => savePdf(consultationLanguage() === 'en' ? 'Cyber Care — Consultation request' : 'Cyber Care — 相談文', $('#statementOverviewText').textContent);
   $('#backFromLog').onclick = () => { $('#log').close(); $('#guide').showModal(); window.showResult(); };
-  $('#nextFromLog').onclick = async () => { const saved = $('#event').value.trim() ? await savePreparedRecord({ showToast: false }) : true; if (!saved) return; $('#log').close(); $('#openStatement').click(); };
+  $('#nextFromLog').onclick = async () => { if(busy)return; const saved = $('#event').value.trim() ? await savePreparedRecord({ showToast: false }) : true; if (!saved) return; $('#log').close(); $('#openStatement').click(); };
   $('#backFromStatement').onclick = () => { $('#statement').close(); $('#openLog').click(); };
   $('#nextFromStatement').onclick = () => { $('#statement').close(); $('#openHelp').click(); };
   $('#backFromHelp').onclick = () => { $('#help').close(); $('#openStatement').click(); };
@@ -255,5 +279,9 @@
   }
   renderChecklist();
   new MutationObserver(renderChecklist).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  for (const id of ['copyStatement','copyOverview']) {
+    const button=$('#'+id),handler=button.onclick;
+    button.onclick=async()=>{try {await handler();} catch(error) {reportError(error);} };
+  }
 })();
 

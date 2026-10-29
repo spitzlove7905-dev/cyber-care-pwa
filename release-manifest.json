@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "release": "cc-candidate-20261029-release-ready-1",
+  "kind": "candidate",
+  "githubBaseCommit": "ce6b1db6d52efc43865a7326650ce78a00ca5e48",
+  "project": "cyber-care-pwa",
+  "publishDirectory": "dist",
+  "functionsDirectory": "functions",
+  "storage": {
+    "database": "cyber-care-safe-v1",
+    "draftKey": "cc-consultation-safe-v1"
+  },
+  "policy": {
+    "idleMinutes": 15,
+    "warningMinutes": 13
+  },
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    },
+    {
+      "path": "dist/_headers",
+      "sha256": "9b28eecddcd03aa28a41d66c701e59abe17218711c58c11b28ccfcd45f562402"
+    },
+    {
+      "path": "dist/_routes.json",
+      "sha256": "e328c40972f61b11d081ae0d047dbc100e761ab3d50d133103a61cc06cb3b66a"
+    },
+    {
+      "path": "dist/briefing.js",
+      "sha256": "98c83e405d36acca63cb5bba01c6c47c38c4442941c5abc2d270384049a2457d"
+    },
+    {
+      "path": "dist/consultation-check.js",
+      "sha256": "179b9ff3cc9bef4a04dcda589bb23a104236c2931c10cce2230fe693ab90fbf0"
+    },
+    {
+      "path": "dist/device-reuse.js",
+      "sha256": "9087e32d9edb9ce5cae8e690d30515fd752251afde5591ab610a325ad9fbd9ea"
+    },
+    {
+      "path": "dist/device-session.js",
+      "sha256": "b0ebd296757ee096359c0ae5277cff3aa455d89f138392756403ee4abac00946"
+    },
+    {
+      "path": "dist/enhancements.js",
+      "sha256": "d32cef2818c5db7362bc42d00c9dcb05170f3e672e10216a2556e1cd3401dba9"
+    },
+    {
+      "path": "dist/favicon.svg",
+      "sha256": "b63d20c92139f98b08e31f2435240cded9635ef1905796882ea65e0bda3d32bd"
+    },
+    {
+      "path": "dist/index.html",
+      "sha256": "4304b5bf163c9e152fa5633b768fcd348d94a2c5d189ce10082c04a86c02ae8d"
+    },
+    {
+      "path": "dist/manifest.webmanifest",
+      "sha256": "6570ebe0ee5671c730c18c0b3a01cb1605fac53b884cba536c3b0e2c843ca86a"
+    },
+    {
+      "path": "dist/operator.html",
+      "sha256": "2a7778ae95da769d02d07cea83b0657fbfd5258b901c92b9c57bf7b1e5fca16c"
+    },
+    {
+      "path": "dist/privacy.html",
+      "sha256": "da0bb68531fe2e0cf5493e581da63982f32d9c182743206743b0f8589a714f97"
+    },
+    {
+      "path": "dist/release-register.js",
+      "sha256": "35ccf9a83377f6d81f8473a29d51887ec1a426a82c165836c6603e2e18638799"
+    },
+    {
+      "path": "dist/runtime-config.js",
+      "sha256": "a2a31b29a03646b5e7c10305d17c3090fa471a0e1fc17fd9da494823b7a0975e"
+    },
+    {
+      "path": "dist/safe-storage.js",
+      "sha256": "5d5c4cb112f3a0eb356e6040b5f004f78a4bb0ffeba5bd8ff9cd631a87f5d73f"
+    },
+    {
+      "path": "dist/security-data.js",
+      "sha256": "d1dc1ccafeb762c7ba5c83e4332b144727afb378ff29e4272f93de63bd755995"
+    },
+    {
+      "path": "dist/security-database-language.js",
+      "sha256": "4a133bd1a092c55290309320e50b015deace99364dc59a8a586ffcac46e45ef0"
+    },
+    {
+      "path": "dist/security-database.css",
+      "sha256": "fb199da019c975c6a9ace2750cfb47b5c6cb96218a7cde975b15d2d1f67a44fc"
+    },
+    {
+      "path": "dist/security-database.html",
+      "sha256": "97942454174cc23cf43c14d6fd7743273c1356f940d33e9eae5e09b7ce827400"
+    },
+    {
+      "path": "dist/security-database.js",
+      "sha256": "137145b9fdf9a98fb6306c4fa49a6498321b58fc7ff038b3eacc1fc457aa7b59"
+    },
+    {
+      "path": "dist/security-status.js",
+      "sha256": "a3fccadada605cbed1cf5b21e78491d76716d5f370f15f45fea6d70c4ba61285"
+    },
+    {
+      "path": "dist/sw.js",
+      "sha256": "bb027a661fee65457ff247cf586057ef72bb25c72aca3e4ae2894b48ce07fb2b"
+    },
+    {
+      "path": "functions/api/security/[[path]].js",
+      "sha256": "c6b82857182af9cbaea4227052b51d09af8ccb944a044ebc2fbbb88ad9e0fab3"
+    },
+    {
+      "path": "verify-release.cjs",
+      "sha256": "5c0f27eaf1c39465b3bc710a61d76b367bb295c6f2140c54cda9f7cd4a9f0da9"
+    },
+    {
+      "path": "wrangler.jsonc",
+      "sha256": "41beee2a50fdba7c4d5669963551b8f7ceb00458dfc2c57593439cf325550eba"
+    }
+  ]
+}

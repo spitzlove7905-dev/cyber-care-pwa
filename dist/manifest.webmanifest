@@ -1,0 +1,9 @@
+{
+  "name": "Cyber Care / 個人情報を守る",
+  "short_name": "Cyber Care",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f8ff",
+  "theme_color": "#4355a7",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
