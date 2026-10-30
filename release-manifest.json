@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "cc-search-20261029-local-1",
+  "release": "cc-gsc-20261030-local-1",
   "kind": "candidate",
-  "githubBaseCommit": "9b45292305a3902d61e6e417332645de8d556ff7",
+  "githubBaseCommit": "b8a5b0cf7ad08c51dd2b7531f8af2d4142299b8a",
   "project": "cyber-care-pwa",
   "publishDirectory": "dist",
   "functionsDirectory": "functions",
@@ -53,7 +53,7 @@
     },
     {
       "path": "dist/index.html",
-      "sha256": "72925cedddc6c84ce45c299cbbe90781abe11cda5abd4a3501d5e16c36094b66"
+      "sha256": "06b764d053690d9e10fd112a79fd96983e4c1771976bd6c8118b2316038ba0a4"
     },
     {
       "path": "dist/manifest.webmanifest",
@@ -73,7 +73,7 @@
     },
     {
       "path": "dist/runtime-config.js",
-      "sha256": "c56ffaf870b36180d855d8df1102ef7edb712078e67ccbe1a793c8540bb4ba87"
+      "sha256": "d321cd9dac1569d1f5f28b8f77340c09b0a16e47af0cf0a8af84d7e0855783ff"
     },
     {
       "path": "dist/safe-storage.js",
@@ -105,7 +105,7 @@
     },
     {
       "path": "dist/sw.js",
-      "sha256": "1680a438e3b463a85ca5ec199433788cb4f44180fb96220886789f0ee5508d3c"
+      "sha256": "716017655b985e10d3e991a4e559b74f77669218ecceaf62f2fac75553261607"
     },
     {
       "path": "functions/api/security/[[path]].js",
